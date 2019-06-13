@@ -1,0 +1,66 @@
+version: 2
+
+jobs:
+  build:
+    working_directory: /go/src/github.com/nest-egg/ami-replacer
+
+    docker:
+      - image: circleci/golang
+
+    environment:
+      TEST_RESULTS: /tmp/test-results
+
+    steps:
+      - checkout
+
+      - run: mkdir -p $TEST_RESULTS
+
+      - restore_cache:
+          keys:
+            - go-mod-v1-{{ checksum "go.sum" }}
+
+      - run:
+          name: Build
+          command: make
+
+      - run:  
+          name: Run lint
+          command: |
+            make lint
+      - run:
+          name: Run unit tests
+          command: |
+            make test
+      - save_cache:
+          key: go-mod-v1-{{ checksum "go.sum" }}
+          paths:
+            - "/go/pkg/mod"
+
+      - store_artifacts:
+          path: /tmp/test-results
+          destination: raw-test-output
+
+      - store_artifacts:
+          path: ./build
+          destination: build
+
+      - store_test_results:
+          path: /tmp/test-results
+
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build/*
+            - Makefile
+
+workflows:
+  version: 2
+
+  build_and_image:
+    jobs:
+      - build:
+          filters:
+            branches:
+              only: /.*/
+            tags:
+              only: /.*/
