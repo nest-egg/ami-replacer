@@ -16,49 +16,69 @@ import (
 //state of asg
 var state string
 
-//ReplaceInstance get status of asg instances
-func (replacer *Replacement) ReplaceInstance(asgname string, cluster string, dryrun bool, image string, owner string) (grp *autoscaling.Group, err error) {
+type cluster struct {
+	Clustername     string
+	EcsInstance     []AsgInstance
+	UnusedInstances []string
+	FreeInstances   []AsgInstance
+	ClusterSize     int
+}
+
+func (replacer *Replacement) setClusterStatus(clustername string, asgname string, newestimage string) (*cluster, error) {
 	asgGroup, err := replacer.InfoAsg(asgname)
 	if err != nil {
 		return nil, err
 	}
-	clustername := cluster
-	defaultClusterSize := len(asgGroup.Instances)
+	clusterSize := len(asgGroup.Instances)
+	ecsInstance, err := replacer.getECSInstance(clustername, asgname, newestimage, clusterSize)
+	if err != nil {
+		return nil, err
+	}
+	unusedInstances, err := replacer.getUnusedInstance(clustername, asgname, newestimage, clusterSize)
+	if err != nil {
+		return nil, err
+	}
+
+	freeInstances, err := replacer.getFreeInstance(clustername, asgname, newestimage, clusterSize)
+	if err != nil {
+		return nil, err
+	}
+
+	clst := &cluster{
+		Clustername:     clustername,
+		EcsInstance:     ecsInstance,
+		UnusedInstances: unusedInstances,
+		FreeInstances:   freeInstances,
+		ClusterSize:     clusterSize,
+	}
+	return clst, nil
+}
+
+//ReplaceInstance get status of asg instances
+func (replacer *Replacement) ReplaceInstance(asgname string, clustername string, dryrun bool, image string, owner string) (grp *autoscaling.Group, err error) {
+
 	newestimage, err := replacer.GetNewestAMI(owner, image)
 	if err != nil {
 		return nil, err
 	}
-
-	ecsInstance, err := replacer.getECSInstance(clustername, asgname, newestimage, defaultClusterSize)
+	clst, err := replacer.setClusterStatus(asgname, clustername, newestimage)
 	if err != nil {
 		return nil, err
 	}
-	unusedInstances, err := replacer.getUnusedInstance(clustername, asgname, newestimage, defaultClusterSize)
-	if err != nil {
-		return nil, err
-	}
+	defaultClusterSize := clst.ClusterSize
 
-	freeInstances, err := replacer.getFreeInstance(clustername, asgname, newestimage, defaultClusterSize)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(unusedInstances) != 0 {
+	if len(clst.UnusedInstances) != 0 {
 		if err := replacer.deploy.FSM.Event("start"); err != nil {
 			return nil, err
 		}
-		output, err := replacer.replaceUnusedInstance(asgname, unusedInstances, dryrun)
+		output, err := replacer.replaceUnusedInstance(asgname, clst.UnusedInstances, dryrun)
 		if err != nil {
 			return nil, fmt.Errorf("cannnot stop unused instance: %v", err)
 		}
 		if err := replacer.deploy.FSM.Event("finish"); err != nil {
 			return nil, err
 		}
-		unusedInstances, err = replacer.getUnusedInstance(clustername, asgname, newestimage, defaultClusterSize)
-		if err != nil {
-			return nil, err
-		}
-		freeInstances, err = replacer.getFreeInstance(clustername, asgname, newestimage, defaultClusterSize)
+		clst, err = replacer.setClusterStatus(asgname, clustername, newestimage)
 		if err != nil {
 			return nil, err
 		}
@@ -67,21 +87,20 @@ func (replacer *Replacement) ReplaceInstance(asgname string, cluster string, dry
 
 	state = replacer.deploy.FSM.Current()
 
-	if len(freeInstances) == 0 && state == "closed" {
+	if len(clst.FreeInstances) == 0 && state == "closed" {
 		log.Info.Println("cluster has no empty ECS instances")
-		log.Info.Printf("extend the size of the cluster.. current size: %d", defaultClusterSize)
-		if err := replacer.optimizeClusterSize(clustername, asgname, defaultClusterSize+1); err != nil {
+		log.Info.Printf("extend the size of the cluster.. current size: %d", clst.ClusterSize)
+		if err := replacer.optimizeClusterSize(clustername, asgname, clst.ClusterSize+1); err != nil {
 			return nil, err
 		}
-		ecsInstance, err = replacer.getECSInstance(clustername, asgname, newestimage, defaultClusterSize)
+		clst, err = replacer.setClusterStatus(asgname, clustername, newestimage)
 		if err != nil {
 			return nil, err
 		}
-		log.Info.Println(ecsInstance)
 	}
 
-	if len(ecsInstance) != 0 && state == "closed" {
-		_, err := replacer.swapInstance(ecsInstance, newestimage, dryrun)
+	if len(clst.EcsInstance) != 0 && state == "closed" {
+		_, err := replacer.swapInstance(clst.EcsInstance, newestimage, dryrun)
 		if err != nil {
 			return nil, err
 		}
