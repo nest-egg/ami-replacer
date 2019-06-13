@@ -25,7 +25,7 @@ func (replacer *Replacement) InfoAsg(asgname string) (grp *autoscaling.Group, er
 		return nil, err
 	}
 	if len(output.AutoScalingGroups) == 0 {
-		return nil, fmt.Errorf("No AutoScaling Group")
+		return nil, fmt.Errorf("There is not such autoscaling Group")
 	}
 	asgGroup := output.AutoScalingGroups[0]
 	if len(asgGroup.Instances) == 0 {
