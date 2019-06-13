@@ -28,7 +28,7 @@ func TestSnapshot_GetNewestAMI(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockreplacer:= NewMockReplacer(
+			mockreplacer := NewMockReplacer(
 				context.Background(),
 				region,
 				profile,
@@ -44,28 +44,27 @@ func TestSnapshot_GetNewestAMI(t *testing.T) {
 	}
 }
 
-
 func TestSnapshot_DeleteSnapshot(t *testing.T) {
 	region := "ap-northeast-1"
 	profile := "admin"
 	testCases := []struct {
-		name      string
-		snapshotid     string
-		shouldErr bool
+		name       string
+		snapshotid string
+		shouldErr  bool
 	}{
 		{
-			name:  "ok",
+			name:       "ok",
 			snapshotid: "ok",
 		},
 		{
-			name:      "error",
-			snapshotid:     "error",
-			shouldErr: true,
+			name:       "error",
+			snapshotid: "error",
+			shouldErr:  true,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockreplacer:= NewMockReplacer(
+			mockreplacer := NewMockReplacer(
 				context.Background(),
 				region,
 				profile,
@@ -81,28 +80,27 @@ func TestSnapshot_DeleteSnapshot(t *testing.T) {
 	}
 }
 
-
 func TestSnapshot_SearchUnusedSnapshot(t *testing.T) {
 	region := "ap-northeast-1"
 	profile := "admin"
 	testCases := []struct {
 		name      string
-		ownerid     string
+		ownerid   string
 		shouldErr bool
 	}{
 		{
-			name:  "ok",
+			name:    "ok",
 			ownerid: "ok",
 		},
 		{
 			name:      "error",
-			ownerid:     "error",
+			ownerid:   "error",
 			shouldErr: true,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockreplacer:= NewMockReplacer(
+			mockreplacer := NewMockReplacer(
 				context.Background(),
 				region,
 				profile,
@@ -122,23 +120,23 @@ func TestSnapshot_VolumeExists(t *testing.T) {
 	region := "ap-northeast-1"
 	profile := "admin"
 	testCases := []struct {
-		name      string
-		snapshotid     string
-		shouldErr bool
+		name       string
+		snapshotid string
+		shouldErr  bool
 	}{
 		{
-			name:  "ok",
+			name:       "ok",
 			snapshotid: "ok",
 		},
 		{
-			name:      "error",
-			snapshotid:     "error",
-			shouldErr: true,
+			name:       "error",
+			snapshotid: "error",
+			shouldErr:  true,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockreplacer:= NewMockReplacer(
+			mockreplacer := NewMockReplacer(
 				context.Background(),
 				region,
 				profile,
@@ -154,28 +152,27 @@ func TestSnapshot_VolumeExists(t *testing.T) {
 	}
 }
 
-
 func TestSnapshot_ImageExists(t *testing.T) {
 	region := "ap-northeast-1"
 	profile := "admin"
 	testCases := []struct {
-		name      string
-		snapshotid     string
-		shouldErr bool
+		name       string
+		snapshotid string
+		shouldErr  bool
 	}{
 		{
-			name:  "ok",
+			name:       "ok",
 			snapshotid: "ok",
 		},
 		{
-			name:      "error",
-			snapshotid:     "error*",
-			shouldErr: true,
+			name:       "error",
+			snapshotid: "error*",
+			shouldErr:  true,
 		},
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockreplacer:= NewMockReplacer(
+			mockreplacer := NewMockReplacer(
 				context.Background(),
 				region,
 				profile,

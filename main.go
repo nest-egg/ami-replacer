@@ -129,22 +129,22 @@ func init() {
 			Name:    "rmi",
 			Aliases: []string{"delete", "d"},
 			Usage:   "delete AMIs",
-			Flags:  rmiFlags,
-			Action: removeAMIs,
+			Flags:   rmiFlags,
+			Action:  removeAMIs,
 		},
 		{
 			Name:    "rms",
 			Aliases: []string{"delete-snap", "ds"},
 			Usage:   "remove unused Snapshots",
-			Flags:  rmsFlags,
-			Action: removeSnapshots,
+			Flags:   rmsFlags,
+			Action:  removeSnapshots,
 		},
 		{
 			Name:    "asg",
 			Aliases: []string{"replace", "r"},
 			Usage:   "replace asg instance",
-			Flags:  replaceFlags,
-			Action: replaceInstances,
+			Flags:   replaceFlags,
+			Action:  replaceInstances,
 		},
 	}
 	region = "ap-northeast-1"

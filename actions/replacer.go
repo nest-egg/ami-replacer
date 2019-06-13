@@ -17,7 +17,7 @@ type Replacer interface {
 	getEcsInstanceArn(string) ([]string, error)
 	EcsInstanceStatus(string, []string) (*ecs.DescribeContainerInstancesOutput, error)
 	replaceUnusedInstance(string, []string, bool) (*ec2.StopInstancesOutput, error)
-	swapInstance([]AsgInstance, string, bool, string) (*ec2.StopInstancesOutput, error)
+	swapInstance([]AsgInstance, string, bool) (*ec2.StopInstancesOutput, error)
 	GetNewestAMI(string, string) (string, error)
 	DeleteSnapshot(string, bool) (*ec2.DeleteSnapshotOutput, error)
 	SearchUnusedSnapshot(string) (*ec2.DescribeSnapshotsOutput, error)
@@ -29,7 +29,7 @@ type Replacer interface {
 
 //Replacement defines replacement task.
 type Replacement struct {
-	ctx context.Context
+	ctx         context.Context
 	deploy      *fsm.Deploy
 	asg         *AutoScaling
 	asginstance *AsgInstance
@@ -47,15 +47,17 @@ type AsgInstance struct {
 	AvailabilityZone string `json:"availabilityzone"`
 	DeleteFlag       bool   `json:"deleteflag"`
 	Cluster          string `json:"cluster"`
+	ClusterSize      int    `json:"clustersize"`
+	Asgname          string `json:"asgname"`
 }
 
 //NewReplacer genetate new replacer object.
 func NewReplacer(
 	ctx context.Context,
 	region string,
-	profile string) (Replacer) {
+	profile string) Replacer {
 
-	asgroup:= newAsg(region, profile)
+	asgroup := newAsg(region, profile)
 	deploy := fsm.NewDeploy("start")
 	return &Replacement{
 		ctx:    ctx,

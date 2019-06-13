@@ -36,7 +36,7 @@ func TestAMI_InfoAsg(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockreplacer:= NewMockReplacer(
+			mockreplacer := NewMockReplacer(
 				context.Background(),
 				region,
 				profile,
@@ -83,7 +83,7 @@ func TestAMI_AmiAsg(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockreplacer:= NewMockReplacer(
+			mockreplacer := NewMockReplacer(
 				context.Background(),
 				region,
 				profile,
@@ -136,7 +136,7 @@ func TestAMI_DeregisterAmi(t *testing.T) {
 	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			mockreplacer:= NewMockReplacer(
+			mockreplacer := NewMockReplacer(
 				context.Background(),
 				region,
 				profile,

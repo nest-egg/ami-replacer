@@ -55,9 +55,9 @@ func newMockAsg(region string, profile string) (asg *mockAutoScaling, err error)
 func NewMockReplacer(
 	ctx context.Context,
 	region string,
-	profile string) (Replacer) {
+	profile string) Replacer {
 
-	asgroup:= newAsg(region, profile)
+	asgroup := newAsg(region, profile)
 	deploy := fsm.NewDeploy("start")
 	asgroup.Ec2Api = &mockEC2iface{}
 	asgroup.AsgAPI = &mockASGiface{}
@@ -352,7 +352,6 @@ func (ec *mockEC2iface) DescribeSnapshots(params *ec2.DescribeSnapshotsInput) (*
 	}
 	return output, nil
 }
-
 
 func (ec *mockEC2iface) DescribeVolumes(params *ec2.DescribeVolumesInput) (*ec2.DescribeVolumesOutput, error) {
 

@@ -17,7 +17,7 @@ func (replacer *Replacement) InfoAsg(asgname string) (grp *autoscaling.Group, er
 
 	params := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{
-			aws.String(asgname), 
+			aws.String(asgname),
 		},
 	}
 	output, err := replacer.asg.AsgAPI.DescribeAutoScalingGroups(params)
