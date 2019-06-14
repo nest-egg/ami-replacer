@@ -24,7 +24,7 @@ type cluster struct {
 	ClusterSize     int
 }
 
-func (replacer *Replacement) setClusterStatus(clustername string, asgname string, newestimage string) (*cluster, error) {
+func (replacer *Replacement) setClusterStatus(asgname string, clustername string, newestimage string) (*cluster, error) {
 	asgGroup, err := replacer.InfoAsg(asgname)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (replacer *Replacement) setClusterStatus(clustername string, asgname string
 	if err != nil {
 		return nil, err
 	}
-	unusedInstances, err := replacer.getUnusedInstance(clustername, asgname, newestimage, clusterSize)
+	unusedInstances, err := replacer.getUnusedInstance(clustername, newestimage)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +90,7 @@ func (replacer *Replacement) ReplaceInstance(asgname string, clustername string,
 	if len(clst.FreeInstances) == 0 && state == "closed" {
 		log.Info.Println("cluster has no empty ECS instances")
 		log.Info.Printf("extend the size of the cluster.. current size: %d", clst.ClusterSize)
-		if err := replacer.optimizeClusterSize(clustername, asgname, clst.ClusterSize+1); err != nil {
+		if err := replacer.optimizeClusterSize(clst, asgname, clst.ClusterSize+1); err != nil {
 			return nil, err
 		}
 		clst, err = replacer.setClusterStatus(asgname, clustername, newestimage)
@@ -100,7 +100,7 @@ func (replacer *Replacement) ReplaceInstance(asgname string, clustername string,
 	}
 
 	if len(clst.EcsInstance) != 0 && state == "closed" {
-		_, err := replacer.swapInstance(clst.EcsInstance, newestimage, dryrun)
+		_, err := replacer.swapInstance(clst, newestimage, dryrun)
 		if err != nil {
 			return nil, err
 		}
@@ -110,7 +110,7 @@ func (replacer *Replacement) ReplaceInstance(asgname string, clustername string,
 	if state != "closed" {
 		return nil, fmt.Errorf("cluster is not steady state")
 	} else if state == "closed" {
-		if err := replacer.optimizeClusterSize(clustername, asgname, defaultClusterSize); err != nil {
+		if err := replacer.optimizeClusterSize(clst, asgname, defaultClusterSize); err != nil {
 			return nil, err
 		}
 		log.Info.Println("successfully recovered the size of the cluster")
@@ -178,17 +178,17 @@ func (replacer *Replacement) replaceUnusedInstance(asgname string, instances []s
 			return err
 		}
 		for idx, res := range resp.Reservations {
-			log.Println("  > Reservation Id", *res.ReservationId, " Num Instances: ", len(res.Instances))
+			log.Debug.Println("Reservation Id: ", *res.ReservationId, " Num Instances: ", len(res.Instances))
 			for _, inst := range resp.Reservations[idx].Instances {
 				code := inst.State.Code
-				log.Info.Printf("status code: %d", *code)
+				log.Info.Printf("Status code: %d", *code)
 				//0 (pending), 16 (running), 32 (shut-ting-down), 48 (terminated), 64 (stopping), and 80 (stopped).
 				if *code != int64(48) && *code != int64(80) {
-					return fmt.Errorf("still running instance: %v", *inst.InstanceId)
+					return fmt.Errorf("There are still running instances: %v", *inst.InstanceId)
 				}
 			}
 		}
-		log.Info.Println("successfully terminated all unused instance.")
+		log.Info.Println("Successfully terminated all unused instance.")
 		return nil
 	}
 
@@ -230,8 +230,9 @@ func (replacer *Replacement) getRegion(instancid string) (region string, err err
 	return region, nil
 }
 
-func (replacer *Replacement) swapInstance(instances []AsgInstance, imageid string, dryrun bool) (out *ec2.StopInstancesOutput, err error) {
+func (replacer *Replacement) swapInstance(clst *cluster, imageid string, dryrun bool) (out *ec2.StopInstancesOutput, err error) {
 
+	instances := clst.EcsInstance
 	var targetAZ []string
 	var wg sync.WaitGroup
 	var emptyInstanceCount int
@@ -290,17 +291,21 @@ func (replacer *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, az strin
 						errc <- fmt.Errorf("cannnot drain instance: %v", err)
 					}
 					stoptarget = append(stoptarget, inst.InstanceID)
+					clustername := inst.Cluster
 					output, err := replacer.replaceUnusedInstance(asgname, stoptarget, dryrun)
 					_ = output
 					if err != nil {
 						errc <- fmt.Errorf("cannnot stop instance: %v", err)
+					}
+					if err := replacer.waitTasksRunning(clustername); err != nil {
+						errc <- err
 					}
 					log.Info.Printf("target ECS instances successfully stopped")
 				}
 			} else if inst.RunningTasks != 0 && inst.ImageID == imageid && inst.AvailabilityZone == az {
 				log.Info.Printf("target ECS instances %s already runs newest AMI", inst.InstanceID)
 			} else if inst.RunningTasks == 0 && inst.AvailabilityZone == az {
-				log.Info.Printf("empty instance with new imageid: %v", inst.InstanceID)
+				log.Info.Printf("nothing to do. empty instance with new imageid: %v", inst.InstanceID)
 			}
 			out <- "done!"
 			close(errc)
@@ -310,6 +315,35 @@ func (replacer *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, az strin
 	}()
 
 	return out, errc
+}
+
+func (replacer *Replacement) waitTasksRunning(clustername string) error {
+
+	var taskscount int64
+	b := backoff.NewExponentialBackOff()
+	b.InitialInterval = time.Duration(10) * time.Second
+	b.MaxInterval = time.Duration(30) * time.Second
+	b.MaxElapsedTime = time.Duration(180) * time.Second
+	bf := backoff.WithMaxRetries(b, 10)
+
+	counter := func() error {
+		status, err := replacer.getClusterStatus(clustername)
+		if err != nil {
+			return err
+		}
+		for _, st := range status.ContainerInstances {
+			taskscount += *st.RunningTasksCount
+		}
+		if taskscount == 0 {
+			return fmt.Errorf("waiting for RunningTasksCount >=1")
+		}
+		return nil
+	}
+	if err := backoff.Retry(counter, bf); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (replacer *Replacement) drainInstance(inst AsgInstance) (*ecs.UpdateContainerInstancesStateOutput, error) {
@@ -325,7 +359,7 @@ func (replacer *Replacement) drainInstance(inst AsgInstance) (*ecs.UpdateContain
 	if err != nil {
 		return nil, err
 	}
-	log.Info.Printf("ECS instances %s has been successfully drained: %v", inst.InstanceID)
+	log.Info.Printf("ECS instances %s has been successfully drained", inst.InstanceID)
 	return result, nil
 }
 
@@ -362,7 +396,7 @@ func (replacer *Replacement) clearScaleinProtection(instance AsgInstance) (*auto
 	return result, nil
 }
 
-func (replacer *Replacement) optimizeClusterSize(clustername string, asgname string, num int) error {
+func (replacer *Replacement) optimizeClusterSize(clst *cluster, asgname string, num int) error {
 
 	var offset int
 	b := backoff.NewExponentialBackOff()
@@ -371,7 +405,18 @@ func (replacer *Replacement) optimizeClusterSize(clustername string, asgname str
 	b.MaxElapsedTime = time.Duration(600) * time.Second
 	bf := backoff.WithMaxRetries(b, 10)
 
-	_, err := replacer.updateASG(asgname, num)
+	status, err := replacer.getClusterStatus(clst.Clustername)
+	if err != nil {
+		return err
+	}
+	for _, st := range status.ContainerInstances {
+		if *st.Status == "DRAINING" {
+			num = num - 1
+		}
+	}
+
+	output, err := replacer.updateASG(asgname, num)
+	_ = output
 	if err != nil {
 		return fmt.Errorf("failed to update asg size: %v", err)
 	}
@@ -384,12 +429,14 @@ func (replacer *Replacement) optimizeClusterSize(clustername string, asgname str
 		if size != num {
 			return fmt.Errorf("there are still pending instances")
 		}
-		status, err := replacer.getClusterStatus(clustername)
+		status, err := replacer.getClusterStatus(clst.Clustername)
 		if err != nil {
 			return err
 		}
 		for _, st := range status.ContainerInstances {
-			if *st.Status == "DRAINING" {
+			log.Debug.Printf("current cluster size: %d", clst.ClusterSize)
+			log.Debug.Printf("dst size: %d", num)
+			if *st.Status == "DRAINING" && clst.ClusterSize > num {
 				offset++
 			}
 		}
@@ -417,7 +464,7 @@ func (replacer *Replacement) getClusterStatus(clustername string) (*ecs.Describe
 	return status, nil
 }
 
-func (replacer *Replacement) getECSInstance(clustername string, asgname string, newestimage string, defaultClusterSize int) ([]AsgInstance, error) {
+func (replacer *Replacement) getECSInstance(clustername string, asgname string, newestimage string, clustersize int) ([]AsgInstance, error) {
 
 	var ecsInstance []AsgInstance
 	status, err := replacer.getClusterStatus(clustername)
@@ -425,7 +472,7 @@ func (replacer *Replacement) getECSInstance(clustername string, asgname string, 
 		return nil, err
 	}
 	for _, st := range status.ContainerInstances {
-		if *st.RunningTasksCount == int64(0) && *st.PendingTasksCount == int64(0) {
+		if *st.RunningTasksCount == int64(0) && *st.PendingTasksCount == int64(0) && *st.Status == "ACTIVE" {
 			imageid, err := replacer.AmiAsg(*st.Ec2InstanceId)
 			if err != nil {
 				return nil, err
@@ -440,7 +487,7 @@ func (replacer *Replacement) getECSInstance(clustername string, asgname string, 
 					InstanceArn:      *st.ContainerInstanceArn,
 					ImageID:          newestimage,
 					Cluster:          clustername,
-					ClusterSize:      defaultClusterSize,
+					ClusterSize:      clustersize,
 					RunningTasks:     0,
 					PendingTasks:     0,
 					AvailabilityZone: region,
@@ -448,7 +495,7 @@ func (replacer *Replacement) getECSInstance(clustername string, asgname string, 
 				}
 				ecsInstance = append(ecsInstance, *instance)
 			}
-		} else if *st.RunningTasksCount == int64(1) {
+		} else if *st.RunningTasksCount == int64(1) && *st.Status == "ACTIVE" {
 			region, err := replacer.getRegion(*st.Ec2InstanceId)
 			if err != nil {
 				return nil, fmt.Errorf("cannnot get region: %v", err)
@@ -465,7 +512,7 @@ func (replacer *Replacement) getECSInstance(clustername string, asgname string, 
 					RunningTasks:     1,
 					PendingTasks:     0,
 					Cluster:          clustername,
-					ClusterSize:      defaultClusterSize,
+					ClusterSize:      clustersize,
 					AvailabilityZone: region,
 					Asgname:          asgname,
 				}
@@ -478,7 +525,7 @@ func (replacer *Replacement) getECSInstance(clustername string, asgname string, 
 	return ecsInstance, nil
 }
 
-func (replacer *Replacement) getUnusedInstance(clustername string, asgname string, newestimage string, defaultClusterSize int) ([]string, error) {
+func (replacer *Replacement) getUnusedInstance(clustername string, newestimage string) ([]string, error) {
 
 	var unusedInstances []string
 	status, err := replacer.getClusterStatus(clustername)
@@ -486,7 +533,7 @@ func (replacer *Replacement) getUnusedInstance(clustername string, asgname strin
 		return nil, err
 	}
 	for _, st := range status.ContainerInstances {
-		if *st.RunningTasksCount == int64(0) && *st.PendingTasksCount == int64(0) {
+		if *st.RunningTasksCount == int64(0) && *st.PendingTasksCount == int64(0) && *st.Status == "ACTIVE" {
 			imageid, err := replacer.AmiAsg(*st.Ec2InstanceId)
 			if err != nil {
 				return nil, err
@@ -499,7 +546,7 @@ func (replacer *Replacement) getUnusedInstance(clustername string, asgname strin
 	return unusedInstances, nil
 }
 
-func (replacer *Replacement) getFreeInstance(clustername string, asgname string, newestimage string, defaultClusterSize int) ([]AsgInstance, error) {
+func (replacer *Replacement) getFreeInstance(clustername string, asgname string, newestimage string, clustersize int) ([]AsgInstance, error) {
 
 	var freeInstance []AsgInstance
 	status, err := replacer.getClusterStatus(clustername)
@@ -507,7 +554,7 @@ func (replacer *Replacement) getFreeInstance(clustername string, asgname string,
 		return nil, err
 	}
 	for _, st := range status.ContainerInstances {
-		if *st.RunningTasksCount == int64(0) && *st.PendingTasksCount == int64(0) {
+		if *st.RunningTasksCount == int64(0) && *st.PendingTasksCount == int64(0) && *st.Status == "ACTIVE" {
 			imageid, err := replacer.AmiAsg(*st.Ec2InstanceId)
 			if err != nil {
 				return nil, err
@@ -522,7 +569,7 @@ func (replacer *Replacement) getFreeInstance(clustername string, asgname string,
 					InstanceArn:      *st.ContainerInstanceArn,
 					ImageID:          newestimage,
 					Cluster:          clustername,
-					ClusterSize:      defaultClusterSize,
+					ClusterSize:      clustersize,
 					RunningTasks:     0,
 					PendingTasks:     0,
 					AvailabilityZone: region,

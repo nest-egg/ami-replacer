@@ -17,7 +17,7 @@ type Replacer interface {
 	getEcsInstanceArn(string) ([]string, error)
 	EcsInstanceStatus(string, []string) (*ecs.DescribeContainerInstancesOutput, error)
 	replaceUnusedInstance(string, []string, bool) (*ec2.StopInstancesOutput, error)
-	swapInstance([]AsgInstance, string, bool) (*ec2.StopInstancesOutput, error)
+	swapInstance(*cluster, string, bool) (*ec2.StopInstancesOutput, error)
 	GetNewestAMI(string, string) (string, error)
 	DeleteSnapshot(string, bool) (*ec2.DeleteSnapshotOutput, error)
 	SearchUnusedSnapshot(string) (*ec2.DescribeSnapshotsOutput, error)
