@@ -332,7 +332,9 @@ func (replacer *Replacement) waitTasksRunning(clustername string) error {
 			return err
 		}
 		for _, st := range status.ContainerInstances {
-			taskscount += *st.RunningTasksCount
+			if *st.Status == "ACTIVE" {
+				taskscount += *st.RunningTasksCount
+			}
 		}
 		if taskscount == 0 {
 			return fmt.Errorf("waiting for RunningTasksCount >=1")
@@ -375,7 +377,7 @@ func (replacer *Replacement) updateASG(asgname string, num int) (*autoscaling.Up
 	}
 	result, err := replacer.asg.AsgAPI.UpdateAutoScalingGroup(params)
 	if err != nil {
-		return nil, fmt.Errorf("failed to scale out asg: %v", err)
+		return nil, err
 	}
 	return result, nil
 }
@@ -411,14 +413,14 @@ func (replacer *Replacement) optimizeClusterSize(clst *cluster, asgname string, 
 	}
 	for _, st := range status.ContainerInstances {
 		if *st.Status == "DRAINING" {
-			num = num - 1
+			clst.ClusterSize = clst.ClusterSize - 1
 		}
 	}
 
 	output, err := replacer.updateASG(asgname, num)
 	_ = output
 	if err != nil {
-		return fmt.Errorf("failed to update asg size: %v", err)
+		return err
 	}
 	counter := func() error {
 		asginfo, err := replacer.InfoAsg(asgname)
@@ -442,6 +444,7 @@ func (replacer *Replacement) optimizeClusterSize(clst *cluster, asgname string, 
 		}
 		if len(status.ContainerInstances)-offset != num {
 			log.Info.Printf("ECS Cluster is still in pending status")
+			log.Info.Println(clst.ClusterSize)
 			return fmt.Errorf("Scaling operation has timed out")
 		}
 		return nil
