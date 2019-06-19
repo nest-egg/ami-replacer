@@ -8,7 +8,7 @@ import (
 	"github.com/nest-egg/ami-replacer/apis"
 )
 
-// AutoScaling has asg and ec2 api interfaces.
+// AutoScaling represents asg and ec2 api interfaces.
 type AutoScaling struct {
 	AsgAPI autoscalingiface.AutoScalingAPI
 	Ec2Api ec2iface.EC2API

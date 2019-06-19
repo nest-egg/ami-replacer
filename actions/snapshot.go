@@ -10,10 +10,10 @@ import (
 	"github.com/nest-egg/ami-replacer/apis"
 )
 
-//GetNewestAMI returns newest AMI of given name.
-func (replacer *Replacement) GetNewestAMI(owner string, image string) (imageid string, err error) {
+//NewestAMI returns newest AMI.
+func (r *Replacement) NewestAMI(owner string, image string) (imageid string, err error) {
 
-	imagesOutput, err := replacer.asg.Ec2Api.DescribeImages(&ec2.DescribeImagesInput{
+	imagesOutput, err := r.asg.Ec2Api.DescribeImages(&ec2.DescribeImagesInput{
 		Owners: []*string{aws.String(owner)},
 		Filters: []*ec2.Filter{{
 			Name:   aws.String("name"),
@@ -29,13 +29,13 @@ func (replacer *Replacement) GetNewestAMI(owner string, image string) (imageid s
 }
 
 //DeleteSnapshot deletes snapshot of given id.
-func (replacer *Replacement) DeleteSnapshot(snapshotid string, dryrun bool) (result *ec2.DeleteSnapshotOutput, err error) {
+func (r *Replacement) DeleteSnapshot(snapshotid string, dryrun bool) (result *ec2.DeleteSnapshotOutput, err error) {
 
 	params := &ec2.DeleteSnapshotInput{
 		DryRun:     aws.Bool(dryrun),
 		SnapshotId: aws.String(snapshotid),
 	}
-	output, err := replacer.asg.Ec2Api.DeleteSnapshot(params)
+	output, err := r.asg.Ec2Api.DeleteSnapshot(params)
 	if err != nil {
 		return nil, err
 	}
@@ -43,14 +43,14 @@ func (replacer *Replacement) DeleteSnapshot(snapshotid string, dryrun bool) (res
 }
 
 //SearchUnusedSnapshot finds snapshot not used by any volumes.
-func (replacer *Replacement) SearchUnusedSnapshot(ownerid string) (result *ec2.DescribeSnapshotsOutput, err error) {
+func (r *Replacement) SearchUnusedSnapshot(ownerid string) (result *ec2.DescribeSnapshotsOutput, err error) {
 
 	params := &ec2.DescribeSnapshotsInput{
 		OwnerIds: []*string{
 			aws.String(ownerid),
 		},
 	}
-	output, err := replacer.asg.Ec2Api.DescribeSnapshots(params)
+	output, err := r.asg.Ec2Api.DescribeSnapshots(params)
 	if err != nil {
 		return nil, err
 	}
@@ -58,7 +58,7 @@ func (replacer *Replacement) SearchUnusedSnapshot(ownerid string) (result *ec2.D
 }
 
 //VolumeExists find if volume exists for given snapshot id.
-func (replacer *Replacement) VolumeExists(snapshotid string) (result *ec2.DescribeVolumesOutput, err error) {
+func (r *Replacement) VolumeExists(snapshotid string) (result *ec2.DescribeVolumesOutput, err error) {
 
 	params := &ec2.DescribeVolumesInput{
 
@@ -68,7 +68,7 @@ func (replacer *Replacement) VolumeExists(snapshotid string) (result *ec2.Descri
 				aws.String(snapshotid),
 			},
 		}}}
-	output, err := replacer.asg.Ec2Api.DescribeVolumes(params)
+	output, err := r.asg.Ec2Api.DescribeVolumes(params)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +79,7 @@ func (replacer *Replacement) VolumeExists(snapshotid string) (result *ec2.Descri
 }
 
 //ImageExists finds existing images for given snapshot id.
-func (replacer *Replacement) ImageExists(snapshotid string) (result *ec2.DescribeImagesOutput, err error) {
+func (r *Replacement) ImageExists(snapshotid string) (result *ec2.DescribeImagesOutput, err error) {
 
 	params := &ec2.DescribeImagesInput{
 
@@ -89,7 +89,7 @@ func (replacer *Replacement) ImageExists(snapshotid string) (result *ec2.Describ
 				aws.String(snapshotid),
 			},
 		}}}
-	output, err := replacer.asg.Ec2Api.DescribeImages(params)
+	output, err := r.asg.Ec2Api.DescribeImages(params)
 	if err != nil {
 		return nil, err
 	}

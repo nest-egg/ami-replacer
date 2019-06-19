@@ -41,7 +41,7 @@ func TestAMI_InfoAsg(t *testing.T) {
 				region,
 				profile,
 			)
-			asginstance, err := mockreplacer.InfoAsg(tc.asgname)
+			asginstance, err := mockreplacer.asgInfo(tc.asgname)
 			_ = asginstance
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)
@@ -52,7 +52,7 @@ func TestAMI_InfoAsg(t *testing.T) {
 	}
 }
 
-func TestAMI_AmiAsg(t *testing.T) {
+func TestAMI_Ami(t *testing.T) {
 	region := "ap-northeast-1"
 	profile := "admin"
 	testCases := []struct {
@@ -88,7 +88,7 @@ func TestAMI_AmiAsg(t *testing.T) {
 				region,
 				profile,
 			)
-			imageid, err := mockreplacer.AmiAsg(tc.instanceid)
+			imageid, err := mockreplacer.Ami(tc.instanceid)
 			_ = imageid
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)

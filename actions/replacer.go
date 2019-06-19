@@ -2,30 +2,8 @@ package actions
 
 import (
 	"context"
-
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/nest-egg/ami-replacer/fsm"
 )
-
-//Replacer is replacer interface.
-type Replacer interface {
-	ReplaceInstance(string, string, bool, string, string) (*autoscaling.Group, error)
-	InfoAsg(string) (*autoscaling.Group, error)
-	AmiAsg(string) (string, error)
-	getEcsInstanceArn(string) ([]string, error)
-	EcsInstanceStatus(string, []string) (*ecs.DescribeContainerInstancesOutput, error)
-	replaceUnusedInstance(string, []string, bool) (*ec2.StopInstancesOutput, error)
-	swapInstance(*cluster, string, bool) (*ec2.StopInstancesOutput, error)
-	GetNewestAMI(string, string) (string, error)
-	DeleteSnapshot(string, bool) (*ec2.DeleteSnapshotOutput, error)
-	SearchUnusedSnapshot(string) (*ec2.DescribeSnapshotsOutput, error)
-	VolumeExists(string) (*ec2.DescribeVolumesOutput, error)
-	ImageExists(string) (*ec2.DescribeImagesOutput, error)
-	getRegion(string) (string, error)
-	DeregisterAMI(string, string, string, int, bool) (*ec2.DeregisterImageOutput, error)
-}
 
 //Replacement defines replacement task.
 type Replacement struct {
@@ -55,7 +33,7 @@ type AsgInstance struct {
 func NewReplacer(
 	ctx context.Context,
 	region string,
-	profile string) Replacer {
+	profile string) *Replacement {
 
 	asgroup := newAsg(region, profile)
 	deploy := fsm.NewDeploy("start")

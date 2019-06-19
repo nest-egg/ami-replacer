@@ -33,7 +33,7 @@ func TestSnapshot_GetNewestAMI(t *testing.T) {
 				region,
 				profile,
 			)
-			output, err := mockreplacer.GetNewestAMI(tc.owner, tc.image)
+			output, err := mockreplacer.NewestAMI(tc.owner, tc.image)
 			_ = output
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)

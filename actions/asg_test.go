@@ -3,7 +3,8 @@ package actions
 import (
 	"context"
 	"testing"
-)
+	"github.com/nest-egg/ami-replacer/config"
+)	
 
 func TestASG_ReplaceInstance(t *testing.T) {
 	region := "ap-northeast-1"
@@ -61,7 +62,15 @@ func TestASG_ReplaceInstance(t *testing.T) {
 				region,
 				profile,
 			)
-			output, err := mockreplacer.ReplaceInstance(tc.asgname, tc.clustername, false, tc.image, tc.owner)
+
+			conf := &config.Config{
+				Asgname:    tc.asgname,
+				Image:      tc.image,
+				Owner:      tc.owner,
+				Clustername: tc.clustername,
+				Dryrun:     false,
+			}
+			output, err := mockreplacer.ReplaceInstance(conf)
 			_ = output
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)

@@ -18,7 +18,7 @@ var (
 	cmds         []cli.Command
 	rmiFlags     []cli.Flag
 	rmsFlags     []cli.Flag
-	replaceFlags []cli.Flag
+	rplFlags []cli.Flag
 	asg          actions.AutoScaling
 	region       string
 	profile      string
@@ -89,7 +89,7 @@ func init() {
 		},
 	}
 
-	replaceFlags = []cli.Flag{
+	rplFlags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "dry-run, d",
 			Usage: "do not actually perform any operation.",
@@ -143,7 +143,7 @@ func init() {
 			Name:    "asg",
 			Aliases: []string{"replace", "r"},
 			Usage:   "replace asg instance",
-			Flags:   replaceFlags,
+			Flags:   rplFlags,
 			Action:  replaceInstances,
 		},
 	}
@@ -176,19 +176,12 @@ func noArgs(context *cli.Context) error {
 	return cli.NewExitError("no commands provided", 2)
 }
 
-func removeAMIs(clicontext *cli.Context) error {
-	conf := &config.Config{
-		Asgname:    clicontext.String("asgname"),
-		Image:      clicontext.String("image"),
-		Owner:      clicontext.String("owner"),
-		Dryrun:     clicontext.Bool("dry-run"),
-		Debug:      clicontext.Bool("verbose"),
-		Generation: clicontext.Int("gen"),
-	}
-
+func removeAMIs(ctx *cli.Context) error {
+	conf := config.SetConfig(ctx)
 	if conf.Debug {
 		log.SetLevel("debug")
 	}
+
 	log.Info.Printf("ami prefix to delete       : %+v\n", conf.Image)
 
 	_, err := config.ParseRegion(region)
@@ -200,76 +193,40 @@ func removeAMIs(clicontext *cli.Context) error {
 		log.Fatal("Invalid config")
 	}
 
-	replacer := makeReplacer(
+	r := makeReplacer(
 		context.Background(),
 		region,
 		profile,
 	)
 
-	asginstance, err := replacer.InfoAsg(conf.Asgname)
-	instanceid := asginstance.Instances[0].InstanceId
-	imageid, err := replacer.AmiAsg(*instanceid)
-	log.Debug.Println(imageid)
-
-	output, err := replacer.DeregisterAMI(imageid, conf.Owner, conf.Image, conf.Generation, conf.Dryrun)
+	_, err := r.RemoveAMIs(conf)
 	if err != nil {
-		log.Fatalf("deregister failed! %v", err)
+		return fmt.Errorf("failed to remove AMIs. %v", err)
 	}
-
-	log.Debug.Println(output)
-	return err
+	return nil
 }
 
-func removeSnapshots(clicontext *cli.Context) error {
-
-	conf := &config.Config{
-		Owner:  clicontext.String("owner"),
-		Dryrun: clicontext.Bool("dry-run"),
+func removeSnapshots(ctx *cli.Context) error {
+	conf := config.SetConfig(ctx)
+	if conf.Debug {
+		log.SetLevel("debug")
 	}
-
-	replacer := makeReplacer(
+	r := makeReplacer(
 		context.Background(),
 		region,
 		profile,
 	)
 
-	unusedsnapshots, err := replacer.SearchUnusedSnapshot(conf.Owner)
-	sort.Sort(apis.VolumeSlice(unusedsnapshots.Snapshots))
-	length := apis.VolumeSlice(unusedsnapshots.Snapshots).Len()
-	for i := 0; i < length; i++ {
-		id := *unusedsnapshots.Snapshots[i].SnapshotId
-		snaps, err := replacer.ImageExists(id)
-		if err != nil {
-			return err
-		}
-		if snaps == nil {
-			volumes, err := replacer.VolumeExists(id)
-			if err != nil {
-				return err
-			}
-			if volumes == nil {
-				fmt.Println(id)
-				deleteresult, err := replacer.DeleteSnapshot(id, dryrun)
-				if err != nil {
-					return err
-				}
-				fmt.Println(deleteresult)
-			}
-		}
+	err := r.RemoveSnapShots(conf)
+	if err != nil {
+		return fmt.Errorf("failed to remove snapshots. %v", err)
 	}
-	return err
+
+	return nil
 }
 
-func replaceInstances(clicontext *cli.Context) error {
-	conf := &config.Config{
-		Asgname:     clicontext.String("asgname"),
-		Clustername: clicontext.String("clustername"),
-		Image:       clicontext.String("image"),
-		Owner:       clicontext.String("owner"),
-		Dryrun:      clicontext.Bool("dry-run"),
-		Debug:       clicontext.Bool("verbose"),
-	}
-
+func replaceInstances(ctx *cli.Context) error {
+	conf := config.SetConfig(ctx)
 	if conf.Debug {
 		log.SetLevel("debug")
 	}
@@ -283,16 +240,16 @@ func replaceInstances(clicontext *cli.Context) error {
 		return fmt.Errorf("Invalid Config")
 	}
 
-	replacer := makeReplacer(
+	r := makeReplacer(
 		context.Background(),
 		region,
 		profile,
 	)
 
-	instances, err := replacer.ReplaceInstance(conf.Asgname, conf.Clustername, conf.Dryrun, conf.Image, conf.Owner)
+	instances, err := r.ReplaceInstance(conf)
+	_=instances
 	if err != nil {
 		return fmt.Errorf("failed to replace instance. %v", err)
 	}
-	log.Debug.Println(instances)
 	return nil
 }

@@ -2,42 +2,52 @@ package actions
 
 import (
 	"fmt"
-	
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/nest-egg/ami-replacer/log"
 )
 
+//Cluster represents ecs cluster with instances to replace.
+type Cluster struct {
+	// Clustername is ecs cluster name
+	Clustername string
 
-type cluster struct {
-	Clustername     string
-	EcsInstance     []AsgInstance
+	// ECSInstance is instances to replace
+	EcsInstance []AsgInstance
+
+	// UnusedInstances is the lists of the ids of empty instance wich is running on old amis.
+	// empty instance means each instance has no running or pending ecs tasks.
 	UnusedInstances []string
-	FreeInstances   []AsgInstance
-	ClusterSize     int
+
+	// FreeInstances is the lists of AsgInstance of empty instance wich is running on newest amis.
+	FreeInstances []AsgInstance
+
+	// ClusterSize is ecs cluster size
+	ClusterSize int
 }
 
-func (replacer *Replacement) setClusterStatus(asgname string, clustername string, newestimage string) (*cluster, error) {
-	asgGroup, err := replacer.InfoAsg(asgname)
+func (r *Replacement) setClusterStatus(asgname string, clustername string, newestimage string) (*Cluster, error) {
+	asgGroup, err := r.asgInfo(asgname)
 	if err != nil {
 		return nil, err
 	}
 	clusterSize := len(asgGroup.Instances)
-	ecsInstance, err := replacer.getECSInstance(clustername, asgname, newestimage, clusterSize)
+	ecsInstance, err := r.ecsInstance(clustername, asgname, newestimage, clusterSize)
 	if err != nil {
 		return nil, err
 	}
-	unusedInstances, err := replacer.getUnusedInstance(clustername, newestimage)
-	if err != nil {
-		return nil, err
-	}
-
-	freeInstances, err := replacer.getFreeInstance(clustername, asgname, newestimage, clusterSize)
+	unusedInstances, err := r.unusedInstance(clustername, newestimage)
 	if err != nil {
 		return nil, err
 	}
 
-	clst := &cluster{
+	freeInstances, err := r.freeInstance(clustername, asgname, newestimage, clusterSize)
+	if err != nil {
+		return nil, err
+	}
+
+	clst := &Cluster{
 		Clustername:     clustername,
 		EcsInstance:     ecsInstance,
 		UnusedInstances: unusedInstances,
@@ -47,49 +57,48 @@ func (replacer *Replacement) setClusterStatus(asgname string, clustername string
 	return clst, nil
 }
 
-func (replacer *Replacement) getClusterStatus(clustername string) (*ecs.DescribeContainerInstancesOutput, error) {
-	arns, err := replacer.getEcsInstanceArn(clustername)
+func (r *Replacement) clusterStatus(clustername string) (*ecs.DescribeContainerInstancesOutput, error) {
+	arns, err := r.ecsInstanceArn(clustername)
 	if err != nil {
 		return nil, fmt.Errorf("cannnot get instance arn: %v", err)
 	}
-	status, err := replacer.EcsInstanceStatus(clustername, arns)
+	status, err := r.ecsInstanceStatus(clustername, arns)
 	if err != nil {
 		return nil, fmt.Errorf("cannnot get ecs status : %v", err)
 	}
 	return status, nil
 }
 
-func (replacer *Replacement) getEcsInstanceArn(clustername string) (out []string, err error) {
-	var instanceArns []string
+func (r *Replacement) ecsInstanceArn(clustername string) (out []string, err error) {
+	var arns []string
 	params := &ecs.ListContainerInstancesInput{
 		Cluster: aws.String(clustername),
 	}
-	output, err := replacer.asg.EcsAPI.ListContainerInstances(params)
+	output, err := r.asg.EcsAPI.ListContainerInstances(params)
 	if err != nil {
 		return nil, err
 	}
 	for _, instance := range output.ContainerInstanceArns {
-		instanceArns = append(instanceArns, aws.StringValue(instance))
+		arns = append(arns, aws.StringValue(instance))
 	}
-	return instanceArns, err
+	return arns, err
 }
 
-//EcsInstanceStatus returns container instance status.
-func (replacer *Replacement) EcsInstanceStatus(clustername string, instances []string) (out *ecs.DescribeContainerInstancesOutput, err error) {
+func (r *Replacement) ecsInstanceStatus(clustername string, instances []string) (out *ecs.DescribeContainerInstancesOutput, err error) {
 
 	params := &ecs.DescribeContainerInstancesInput{
 		Cluster:            aws.String(clustername),
 		ContainerInstances: aws.StringSlice(instances),
 	}
 	log.Debug.Println(params)
-	output, err := replacer.asg.EcsAPI.DescribeContainerInstances(params)
+	output, err := r.asg.EcsAPI.DescribeContainerInstances(params)
 	if err != nil {
 		return nil, err
 	}
 	return output, err
 }
 
-func (replacer *Replacement) drainInstance(inst AsgInstance) (*ecs.UpdateContainerInstancesStateOutput, error) {
+func (r *Replacement) drainInstance(inst AsgInstance) (*ecs.UpdateContainerInstancesStateOutput, error) {
 
 	params := &ecs.UpdateContainerInstancesStateInput{
 		Cluster: aws.String(inst.Cluster),
@@ -98,7 +107,7 @@ func (replacer *Replacement) drainInstance(inst AsgInstance) (*ecs.UpdateContain
 		},
 		Status: aws.String("DRAINING"),
 	}
-	result, err := replacer.asg.EcsAPI.UpdateContainerInstancesState(params)
+	result, err := r.asg.EcsAPI.UpdateContainerInstancesState(params)
 	if err != nil {
 		return nil, err
 	}

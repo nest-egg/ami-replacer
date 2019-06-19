@@ -55,7 +55,7 @@ func newMockAsg(region string, profile string) (asg *mockAutoScaling, err error)
 func NewMockReplacer(
 	ctx context.Context,
 	region string,
-	profile string) Replacer {
+	profile string) *Replacement {
 
 	asgroup := newAsg(region, profile)
 	deploy := fsm.NewDeploy("start")
