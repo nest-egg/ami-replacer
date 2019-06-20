@@ -10,10 +10,9 @@ import (
 	"github.com/nest-egg/ami-replacer/apis"
 )
 
-//NewestAMI returns newest AMI.
-func (r *Replacement) NewestAMI(owner string, image string) (imageid string, err error) {
+func (r *Replacement) newestAMI(owner string, image string) (imageid string, err error) {
 
-	imagesOutput, err := r.asg.Ec2Api.DescribeImages(&ec2.DescribeImagesInput{
+	output, err := r.asg.Ec2Api.DescribeImages(&ec2.DescribeImagesInput{
 		Owners: []*string{aws.String(owner)},
 		Filters: []*ec2.Filter{{
 			Name:   aws.String("name"),
@@ -23,13 +22,12 @@ func (r *Replacement) NewestAMI(owner string, image string) (imageid string, err
 		return "", err
 	}
 
-	sort.Sort(apis.ImageSlice(imagesOutput.Images))
-	newestimageid := imagesOutput.Images[0].ImageId
+	sort.Sort(apis.ImageSlice(output.Images))
+	newestimageid := output.Images[0].ImageId
 	return *newestimageid, nil
 }
 
-//DeleteSnapshot deletes snapshot of given id.
-func (r *Replacement) DeleteSnapshot(snapshotid string, dryrun bool) (result *ec2.DeleteSnapshotOutput, err error) {
+func (r *Replacement) deleteSnapshot(snapshotid string) (result *ec2.DeleteSnapshotOutput, err error) {
 
 	params := &ec2.DeleteSnapshotInput{
 		DryRun:     aws.Bool(dryrun),
@@ -42,8 +40,7 @@ func (r *Replacement) DeleteSnapshot(snapshotid string, dryrun bool) (result *ec
 	return output, nil
 }
 
-//SearchUnusedSnapshot finds snapshot not used by any volumes.
-func (r *Replacement) SearchUnusedSnapshot(ownerid string) (result *ec2.DescribeSnapshotsOutput, err error) {
+func (r *Replacement) searchUnusedSnapshot(ownerid string) (result *ec2.DescribeSnapshotsOutput, err error) {
 
 	params := &ec2.DescribeSnapshotsInput{
 		OwnerIds: []*string{
@@ -57,8 +54,7 @@ func (r *Replacement) SearchUnusedSnapshot(ownerid string) (result *ec2.Describe
 	return output, nil
 }
 
-//VolumeExists find if volume exists for given snapshot id.
-func (r *Replacement) VolumeExists(snapshotid string) (result *ec2.DescribeVolumesOutput, err error) {
+func (r *Replacement) volumeExists(snapshotid string) (result *ec2.DescribeVolumesOutput, err error) {
 
 	params := &ec2.DescribeVolumesInput{
 
@@ -72,14 +68,10 @@ func (r *Replacement) VolumeExists(snapshotid string) (result *ec2.DescribeVolum
 	if err != nil {
 		return nil, err
 	}
-	if len(output.Volumes) == 0 {
-		return nil, nil
-	}
 	return output, nil
 }
 
-//ImageExists finds existing images for given snapshot id.
-func (r *Replacement) ImageExists(snapshotid string) (result *ec2.DescribeImagesOutput, err error) {
+func (r *Replacement) imageExists(snapshotid string) (result *ec2.DescribeImagesOutput, err error) {
 
 	params := &ec2.DescribeImagesInput{
 
@@ -92,9 +84,6 @@ func (r *Replacement) ImageExists(snapshotid string) (result *ec2.DescribeImages
 	output, err := r.asg.Ec2Api.DescribeImages(params)
 	if err != nil {
 		return nil, err
-	}
-	if len(output.Images) == 0 {
-		return nil, nil
 	}
 	return output, nil
 }

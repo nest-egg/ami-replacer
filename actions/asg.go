@@ -3,30 +3,27 @@ package actions
 import (
 	"fmt"
 	"sync"
-	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/cenkalti/backoff"
+
 	"github.com/nest-egg/ami-replacer/log"
 )
 
-func (r *Replacement) replaceUnusedInstance(asgname string, instances []string, dryrun bool) (*ec2.StopInstancesOutput, error) {
+func (r *Replacement) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOutput, error) {
+
+	instances := clst.unusedInstances
+	asgname := clst.asg.name
+	num := clst.asg.size
+
+	log.Info.Printf("stop instance %v", instances)
+
 	params := &ec2.StopInstancesInput{
 		DryRun:      aws.Bool(dryrun),
 		InstanceIds: aws.StringSlice(instances),
 	}
-
-	asginfo, err := r.asgInfo(asgname)
-	if err != nil {
-		return nil, err
-	}
-	num := len(asginfo.Instances)
-
-	log.Info.Printf("num of asg instances before replace: %v", num)
-	log.Info.Printf("stop instance %v", instances)
-
 	result, err := r.asg.Ec2Api.StopInstances(params)
 	if err != nil {
 		return nil, err
@@ -55,10 +52,7 @@ func (r *Replacement) replaceUnusedInstance(asgname string, instances []string, 
 		return nil
 	}
 
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = time.Duration(10) * time.Second
-	b.MaxInterval = time.Duration(30) * time.Second
-	b.MaxElapsedTime = time.Duration(300) * time.Second
+	b := newExponentialBackOff()
 	bf := backoff.WithMaxRetries(b, 10)
 	if err := backoff.Retry(describe, bf); err != nil {
 		return nil, err
@@ -82,7 +76,7 @@ func (r *Replacement) replaceUnusedInstance(asgname string, instances []string, 
 	return result, err
 }
 
-func (r *Replacement) getRegion(instancid string) (region string, err error) {
+func (r *Replacement) region(instancid string) (region string, err error) {
 	params := &ec2.DescribeInstancesInput{
 		InstanceIds: []*string{
 			aws.String(instancid),
@@ -93,20 +87,20 @@ func (r *Replacement) getRegion(instancid string) (region string, err error) {
 	return region, nil
 }
 
-func (r *Replacement) swapInstance(clst *Cluster, imageid string, dryrun bool) (out *ec2.StopInstancesOutput, err error) {
+func (r *Replacement) swapInstance(clst *cluster) (out *ec2.StopInstancesOutput, err error) {
 
-	instances := clst.EcsInstance
+	instances := clst.ecsInstance
 	var targetAZ []string
 	var wg sync.WaitGroup
 	var emptyInstanceCount int
-	asgname := instances[0].Asgname
+	asgname := clst.asg.name
 
-	log.Info.Printf("replace ECS cluster instances with newest AMI: %s", imageid)
+	log.Info.Printf("replace ECS cluster instances with newest AMI: %s", clst.asg.newesetami)
 	if err := r.deploy.FSM.Event("start"); err != nil {
 		return nil, err
 	}
 	for _, inst := range instances {
-		_, err := r.clearScaleinProtection(inst)
+		_, err := r.clearScaleinProtection(inst, asgname)
 		if err != nil {
 			return nil, err
 		}
@@ -124,7 +118,7 @@ func (r *Replacement) swapInstance(clst *Cluster, imageid string, dryrun bool) (
 		log.Info.Printf("replace ECS instances running in az: %s", az)
 		for _, inst := range instances {
 			wg.Add(1)
-			_, errc := r.swap(inst, &wg, az, imageid, asgname, dryrun)
+			_, errc := r.swap(inst, &wg, az, clst.asg.newesetami, clst.asg.name)
 			err := <-errc
 			if err != nil {
 				return nil, err
@@ -139,7 +133,7 @@ func (r *Replacement) swapInstance(clst *Cluster, imageid string, dryrun bool) (
 	return nil, nil
 }
 
-func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, az string, imageid string, asgname string, dryrun bool) (<-chan string, <-chan error) {
+func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, az string, imageid string, asgname string) (<-chan string, <-chan error) {
 	out := make(chan string, 1)
 	errc := make(chan error, 1)
 	var stoptarget []string
@@ -154,8 +148,14 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, az string, imag
 						errc <- fmt.Errorf("cannnot drain instance: %v", err)
 					}
 					stoptarget = append(stoptarget, inst.InstanceID)
+					c := &cluster{
+						unusedInstances: stoptarget,
+						asg: asg{
+							name: asgname,
+						},
+					}
 					clustername := inst.Cluster
-					output, err := r.replaceUnusedInstance(asgname, stoptarget, dryrun)
+					output, err := r.replaceUnusedInstance(c)
 					_ = output
 					if err != nil {
 						errc <- fmt.Errorf("cannnot stop instance: %v", err)
@@ -183,10 +183,7 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, az string, imag
 func (r *Replacement) waitTasksRunning(clustername string) error {
 
 	var taskscount int64
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = time.Duration(10) * time.Second
-	b.MaxInterval = time.Duration(30) * time.Second
-	b.MaxElapsedTime = time.Duration(180) * time.Second
+	b := newExponentialBackOff()
 	bf := backoff.WithMaxRetries(b, 10)
 
 	counter := func() error {
@@ -228,10 +225,10 @@ func (r *Replacement) updateASG(asgname string, num int) (*autoscaling.UpdateAut
 	return result, nil
 }
 
-func (r *Replacement) clearScaleinProtection(instance AsgInstance) (*autoscaling.SetInstanceProtectionOutput, error) {
+func (r *Replacement) clearScaleinProtection(instance AsgInstance, asgname string) (*autoscaling.SetInstanceProtectionOutput, error) {
 
 	params := &autoscaling.SetInstanceProtectionInput{
-		AutoScalingGroupName: aws.String(instance.Asgname),
+		AutoScalingGroupName: aws.String(asgname),
 		InstanceIds: []*string{
 			aws.String(instance.InstanceID),
 		},
@@ -244,22 +241,20 @@ func (r *Replacement) clearScaleinProtection(instance AsgInstance) (*autoscaling
 	return result, nil
 }
 
-func (r *Replacement) optimizeClusterSize(clst *Cluster, asgname string, num int) error {
+func (r *Replacement) optimizeClusterSize(clst *cluster, num int) error {
 
 	var offset int
-	b := backoff.NewExponentialBackOff()
-	b.InitialInterval = time.Duration(10) * time.Second
-	b.MaxInterval = time.Duration(120) * time.Second
-	b.MaxElapsedTime = time.Duration(600) * time.Second
+	asgname := clst.asg.name
+	b := newExponentialBackOff()
 	bf := backoff.WithMaxRetries(b, 10)
 
-	status, err := r.clusterStatus(clst.Clustername)
+	status, err := r.clusterStatus(clst.name)
 	if err != nil {
 		return err
 	}
 	for _, st := range status.ContainerInstances {
 		if *st.Status == "DRAINING" {
-			clst.ClusterSize = clst.ClusterSize - 1
+			clst.size = clst.size - 1
 		}
 	}
 
@@ -277,22 +272,22 @@ func (r *Replacement) optimizeClusterSize(clst *Cluster, asgname string, num int
 		if size != num {
 			return fmt.Errorf("there are still pending instances")
 		}
-		status, err := r.clusterStatus(clst.Clustername)
+		status, err := r.clusterStatus(clst.name)
 		if err != nil {
 			return err
 		}
 		for _, st := range status.ContainerInstances {
-			log.Debug.Printf("current cluster size: %d", clst.ClusterSize)
+			log.Debug.Printf("current cluster size: %d", clst.size)
 			log.Debug.Printf("dst size: %d", num)
-			if *st.Status == "DRAINING" && clst.ClusterSize > num {
+			if *st.Status == "DRAINING" && clst.size > num {
 				offset++
 			}
 		}
 		if len(status.ContainerInstances)-offset != num {
 			log.Info.Printf("ECS Cluster is still in pending status")
-			log.Info.Println(clst.ClusterSize)
-			log.Info.Println(offset)
-			log.Info.Println(len(status.ContainerInstances))
+			log.Debug.Printf("current ecs cluster size: %d", clst.size)
+			log.Debug.Printf("current offset: %d", offset)
+			log.Debug.Printf("num of container instances: %d", len(status.ContainerInstances))
 			return fmt.Errorf("Scaling operation has timed out")
 		}
 		return nil
@@ -317,7 +312,7 @@ func (r *Replacement) ecsInstance(clustername string, asgname string, newestimag
 				return nil, err
 			}
 			if imageid == newestimage {
-				region, err := r.getRegion(*st.Ec2InstanceId)
+				region, err := r.region(*st.Ec2InstanceId)
 				if err != nil {
 					return nil, fmt.Errorf("cannnot get region: %v", err)
 				}
@@ -330,12 +325,11 @@ func (r *Replacement) ecsInstance(clustername string, asgname string, newestimag
 					RunningTasks:     0,
 					PendingTasks:     0,
 					AvailabilityZone: region,
-					Asgname:          asgname,
 				}
 				ecsInstance = append(ecsInstance, *instance)
 			}
 		} else if *st.RunningTasksCount == int64(1) && *st.Status == "ACTIVE" {
-			region, err := r.getRegion(*st.Ec2InstanceId)
+			region, err := r.region(*st.Ec2InstanceId)
 			if err != nil {
 				return nil, fmt.Errorf("cannnot get region: %v", err)
 			}
@@ -353,7 +347,6 @@ func (r *Replacement) ecsInstance(clustername string, asgname string, newestimag
 					Cluster:          clustername,
 					ClusterSize:      clustersize,
 					AvailabilityZone: region,
-					Asgname:          asgname,
 				}
 				ecsInstance = append(ecsInstance, *instance)
 			} else if imageid == newestimage {
@@ -399,7 +392,7 @@ func (r *Replacement) freeInstance(clustername string, asgname string, newestima
 				return nil, err
 			}
 			if imageid == newestimage {
-				region, err := r.getRegion(*st.Ec2InstanceId)
+				region, err := r.region(*st.Ec2InstanceId)
 				if err != nil {
 					return nil, fmt.Errorf("cannnot get region: %v", err)
 				}
@@ -412,7 +405,6 @@ func (r *Replacement) freeInstance(clustername string, asgname string, newestima
 					RunningTasks:     0,
 					PendingTasks:     0,
 					AvailabilityZone: region,
-					Asgname:          asgname,
 				}
 				freeInstance = append(freeInstance, *instance)
 			}

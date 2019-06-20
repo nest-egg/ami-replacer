@@ -141,7 +141,7 @@ func TestAMI_DeregisterAmi(t *testing.T) {
 				region,
 				profile,
 			)
-			output, err := mockreplacer.DeregisterAMI(tc.imageid, tc.owner, tc.image, tc.generation, false)
+			output, err := mockreplacer.deregisterAMI(tc.imageid, tc.owner, tc.image, tc.generation)
 			_ = output
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)

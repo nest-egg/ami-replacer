@@ -4,27 +4,25 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"sort"
 
 	"github.com/urfave/cli"
 
 	"github.com/nest-egg/ami-replacer/actions"
-	"github.com/nest-egg/ami-replacer/apis"
 	"github.com/nest-egg/ami-replacer/config"
 	"github.com/nest-egg/ami-replacer/log"
 )
 
 var (
-	cmds         []cli.Command
-	rmiFlags     []cli.Flag
-	rmsFlags     []cli.Flag
+	cmds     []cli.Command
+	rmiFlags []cli.Flag
+	rmsFlags []cli.Flag
 	rplFlags []cli.Flag
-	asg          actions.AutoScaling
-	region       string
-	profile      string
-	owner        string
-	image        string
-	dryrun       bool
+	asg      actions.AutoScaling
+	region   string
+	profile  string
+	owner    string
+	image    string
+	dryrun   bool
 )
 
 var makeReplacer = actions.NewReplacer
@@ -199,8 +197,7 @@ func removeAMIs(ctx *cli.Context) error {
 		profile,
 	)
 
-	_, err := r.RemoveAMIs(conf)
-	if err != nil {
+	if err := r.RemoveAMIs(conf); err != nil {
 		return fmt.Errorf("failed to remove AMIs. %v", err)
 	}
 	return nil
@@ -247,7 +244,7 @@ func replaceInstances(ctx *cli.Context) error {
 	)
 
 	instances, err := r.ReplaceInstance(conf)
-	_=instances
+	_ = instances
 	if err != nil {
 		return fmt.Errorf("failed to replace instance. %v", err)
 	}

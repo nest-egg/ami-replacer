@@ -15,18 +15,16 @@ type Replacement struct {
 
 //AsgInstance retains status of each asg instance.
 type AsgInstance struct {
-	InstanceID       string `json:"instanceID"`
-	InstanceArn      string `json:"instanceArn"`
-	ImageID          string `json:"imageID"`
-	RunningTasks     int    `json:"runningtasks"`
-	PendingTasks     int    `json:"pendingtasks"`
-	Draining         bool   `json:"draining"`
-	ScalinProtection bool   `json:"scaleinprotection"`
-	AvailabilityZone string `json:"availabilityzone"`
-	DeleteFlag       bool   `json:"deleteflag"`
-	Cluster          string `json:"cluster"`
-	ClusterSize      int    `json:"clustersize"`
-	Asgname          string `json:"asgname"`
+	InstanceID       string
+	InstanceArn      string
+	ImageID          string
+	RunningTasks     int
+	PendingTasks     int
+	Draining         bool
+	ScalinProtection bool
+	AvailabilityZone string
+	Cluster          string
+	ClusterSize      int
 }
 
 //NewReplacer genetate new replacer object.

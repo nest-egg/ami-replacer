@@ -6,53 +6,63 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/nest-egg/ami-replacer/log"
+
+	"github.com/nest-egg/ami-replacer/config"
 )
 
-//Cluster represents ecs cluster with instances to replace.
-type Cluster struct {
-	// Clustername is ecs cluster name
-	Clustername string
-
-	// ECSInstance is instances to replace
-	EcsInstance []AsgInstance
-
-	// UnusedInstances is the lists of the ids of empty instance wich is running on old amis.
-	// empty instance means each instance has no running or pending ecs tasks.
-	UnusedInstances []string
-
-	// FreeInstances is the lists of AsgInstance of empty instance wich is running on newest amis.
-	FreeInstances []AsgInstance
-
-	// ClusterSize is ecs cluster size
-	ClusterSize int
+type cluster struct {
+	name            string
+	ecsInstance     []AsgInstance
+	unusedInstances []string
+	freeInstances   []AsgInstance
+	size            int
+	asg             asg
 }
 
-func (r *Replacement) setClusterStatus(asgname string, clustername string, newestimage string) (*Cluster, error) {
-	asgGroup, err := r.asgInfo(asgname)
-	if err != nil {
-		return nil, err
-	}
-	clusterSize := len(asgGroup.Instances)
-	ecsInstance, err := r.ecsInstance(clustername, asgname, newestimage, clusterSize)
-	if err != nil {
-		return nil, err
-	}
-	unusedInstances, err := r.unusedInstance(clustername, newestimage)
+type asg struct {
+	name       string
+	size       int
+	newesetami string
+}
+
+func (r *Replacement) setClusterStatus(c *config.Config) (*cluster, error) {
+
+	newestimage, err := r.newestAMI(c.Owner, c.Image)
 	if err != nil {
 		return nil, err
 	}
 
-	freeInstances, err := r.freeInstance(clustername, asgname, newestimage, clusterSize)
+	asginfo, err := r.asgInfo(c.Asgname)
+	if err != nil {
+		return nil, err
+	}
+	num := len(asginfo.Instances)
 	if err != nil {
 		return nil, err
 	}
 
-	clst := &Cluster{
-		Clustername:     clustername,
-		EcsInstance:     ecsInstance,
-		UnusedInstances: unusedInstances,
-		FreeInstances:   freeInstances,
-		ClusterSize:     clusterSize,
+	clusterSize := len(asginfo.Instances)
+	ecsInstance, err := r.ecsInstance(c.Clustername, c.Asgname, newestimage, clusterSize)
+	if err != nil {
+		return nil, err
+	}
+	unusedInstances, err := r.unusedInstance(c.Clustername, newestimage)
+	if err != nil {
+		return nil, err
+	}
+
+	freeInstances, err := r.freeInstance(c.Clustername, c.Asgname, newestimage, clusterSize)
+	if err != nil {
+		return nil, err
+	}
+
+	clst := &cluster{
+		name:            c.Clustername,
+		ecsInstance:     ecsInstance,
+		unusedInstances: unusedInstances,
+		freeInstances:   freeInstances,
+		size:            clusterSize,
+		asg:             asg{c.Asgname, num, newestimage},
 	}
 	return clst, nil
 }

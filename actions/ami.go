@@ -37,38 +37,41 @@ func (r *Replacement) asgInfo(asgname string) (grp *autoscaling.Group, err error
 }
 
 //Ami extracts imageID of current ASG from Launch Template.
-func (r *Replacement) Ami(instanceID string) (amiID string, err error) {
+func (r *Replacement) Ami(id string) (string, error) {
 
 	params := &autoscaling.DescribeAutoScalingInstancesInput{
 		InstanceIds: []*string{
-			aws.String(instanceID),
+			aws.String(id),
 		},
 	}
 	output, err := r.asg.AsgAPI.DescribeAutoScalingInstances(params)
 	if err != nil {
 		return "", err
 	}
-	instance := output.AutoScalingInstances[0]
-	if instance.LaunchTemplate == nil {
-		return "", fmt.Errorf("AutoScaling Group is missing Instances: %+v", *instance)
+
+	inst := output.AutoScalingInstances[0]
+	if inst.LaunchTemplate == nil {
+		return "", fmt.Errorf("AutoScaling Group is missing Instances: %+v", *inst)
 	}
-	launchtemplateid := instance.LaunchTemplate.LaunchTemplateId
-	version := instance.LaunchTemplate.Version
+
+	templateID := inst.LaunchTemplate.LaunchTemplateId
+	ver := inst.LaunchTemplate.Version
 	latest, err := r.asg.Ec2Api.DescribeLaunchTemplateVersions(&ec2.DescribeLaunchTemplateVersionsInput{
-		LaunchTemplateId: aws.String(*launchtemplateid),
+		LaunchTemplateId: aws.String(*templateID),
 		Versions: []*string{
-			aws.String(*version),
+			aws.String(*ver),
 		},
 	})
 	if err != nil {
 		return "", err
 	}
+
 	amiid := *latest.LaunchTemplateVersions[0].LaunchTemplateData.ImageId
 	return amiid, nil
 }
 
 //DeregisterAMI deregisters ami.
-func (r *Replacement) DeregisterAMI(imageid string, owner string, imagename string, gen int, dryrun bool) (*ec2.DeregisterImageOutput, error) {
+func (r *Replacement) deregisterAMI(imageid string, owner string, imagename string, gen int) (*ec2.DeregisterImageOutput, error) {
 	i, err := r.asg.Ec2Api.DescribeImages(&ec2.DescribeImagesInput{
 		Owners: []*string{aws.String(owner)},
 		Filters: []*ec2.Filter{{

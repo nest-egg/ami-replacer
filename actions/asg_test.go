@@ -2,9 +2,9 @@ package actions
 
 import (
 	"context"
-	"testing"
 	"github.com/nest-egg/ami-replacer/config"
-)	
+	"testing"
+)
 
 func TestASG_ReplaceInstance(t *testing.T) {
 	region := "ap-northeast-1"
@@ -64,11 +64,11 @@ func TestASG_ReplaceInstance(t *testing.T) {
 			)
 
 			conf := &config.Config{
-				Asgname:    tc.asgname,
-				Image:      tc.image,
-				Owner:      tc.owner,
+				Asgname:     tc.asgname,
+				Image:       tc.image,
+				Owner:       tc.owner,
 				Clustername: tc.clustername,
-				Dryrun:     false,
+				Dryrun:      false,
 			}
 			output, err := mockreplacer.ReplaceInstance(conf)
 			_ = output

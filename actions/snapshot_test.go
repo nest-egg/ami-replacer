@@ -33,7 +33,7 @@ func TestSnapshot_GetNewestAMI(t *testing.T) {
 				region,
 				profile,
 			)
-			output, err := mockreplacer.NewestAMI(tc.owner, tc.image)
+			output, err := mockreplacer.newestAMI(tc.owner, tc.image)
 			_ = output
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)
@@ -69,7 +69,7 @@ func TestSnapshot_DeleteSnapshot(t *testing.T) {
 				region,
 				profile,
 			)
-			output, err := mockreplacer.DeleteSnapshot(tc.snapshotid, false)
+			output, err := mockreplacer.deleteSnapshot(tc.snapshotid)
 			_ = output
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)
@@ -105,7 +105,7 @@ func TestSnapshot_SearchUnusedSnapshot(t *testing.T) {
 				region,
 				profile,
 			)
-			output, err := mockreplacer.SearchUnusedSnapshot(tc.ownerid)
+			output, err := mockreplacer.searchUnusedSnapshot(tc.ownerid)
 			_ = output
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)
@@ -141,7 +141,7 @@ func TestSnapshot_VolumeExists(t *testing.T) {
 				region,
 				profile,
 			)
-			output, err := mockreplacer.VolumeExists(tc.snapshotid)
+			output, err := mockreplacer.volumeExists(tc.snapshotid)
 			_ = output
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)
@@ -177,7 +177,7 @@ func TestSnapshot_ImageExists(t *testing.T) {
 				region,
 				profile,
 			)
-			output, err := mockreplacer.ImageExists(tc.snapshotid)
+			output, err := mockreplacer.imageExists(tc.snapshotid)
 			_ = output
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)
