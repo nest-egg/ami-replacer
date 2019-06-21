@@ -12,30 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 )
 
-//InfoAsg gets information of auto-scaling groups.
-func (r *Replacement) asgInfo(asgname string) (grp *autoscaling.Group, err error) {
-
-	params := &autoscaling.DescribeAutoScalingGroupsInput{
-		AutoScalingGroupNames: []*string{
-			aws.String(asgname),
-		},
-	}
-	output, err := r.asg.AsgAPI.DescribeAutoScalingGroups(params)
-	if err != nil {
-		return nil, err
-	}
-	log.Debug.Printf("described asg... %v", output)
-	if len(output.AutoScalingGroups) == 0 {
-		return nil, fmt.Errorf("There is not such autoscaling Group as %s", asgname)
-	}
-	asgGroup := output.AutoScalingGroups[0]
-	if len(asgGroup.Instances) == 0 {
-		return nil, fmt.Errorf("missing Instances: %+v", *asgGroup)
-	}
-	log.Debug.Println(asgGroup)
-	return asgGroup, nil
-}
-
 //Ami extracts imageID of current ASG from Launch Template.
 func (r *Replacement) Ami(id string) (string, error) {
 
@@ -70,7 +46,29 @@ func (r *Replacement) Ami(id string) (string, error) {
 	return amiid, nil
 }
 
-//DeregisterAMI deregisters ami.
+func (r *Replacement) asgInfo(asgname string) (grp *autoscaling.Group, err error) {
+
+	params := &autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: []*string{
+			aws.String(asgname),
+		},
+	}
+	output, err := r.asg.AsgAPI.DescribeAutoScalingGroups(params)
+	if err != nil {
+		return nil, err
+	}
+	log.Debug.Printf("described asg... %v", output)
+	if len(output.AutoScalingGroups) == 0 {
+		return nil, fmt.Errorf("There is not such autoscaling Group as %s", asgname)
+	}
+	asgGroup := output.AutoScalingGroups[0]
+	if len(asgGroup.Instances) == 0 {
+		return nil, fmt.Errorf("missing Instances: %+v", *asgGroup)
+	}
+	log.Debug.Println(asgGroup)
+	return asgGroup, nil
+}
+
 func (r *Replacement) deregisterAMI(imageid string, owner string, imagename string, gen int) (*ec2.DeregisterImageOutput, error) {
 	i, err := r.asg.Ec2Api.DescribeImages(&ec2.DescribeImagesInput{
 		Owners: []*string{aws.String(owner)},

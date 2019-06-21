@@ -40,30 +40,57 @@ func (r *Replacement) setClusterStatus(c *config.Config) (*cluster, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	clusterSize := len(asginfo.Instances)
-	ecsInstance, err := r.ecsInstance(c.Clustername, c.Asgname, newestimage, clusterSize)
-	if err != nil {
-		return nil, err
-	}
-	unusedInstances, err := r.unusedInstance(c.Clustername, newestimage)
-	if err != nil {
-		return nil, err
-	}
-
-	freeInstances, err := r.freeInstance(c.Clustername, c.Asgname, newestimage, clusterSize)
-	if err != nil {
-		return nil, err
-	}
 
 	clst := &cluster{
-		name:            c.Clustername,
-		ecsInstance:     ecsInstance,
-		unusedInstances: unusedInstances,
-		freeInstances:   freeInstances,
-		size:            clusterSize,
-		asg:             asg{c.Asgname, num, newestimage},
+		name: c.Clustername,
+		size: clusterSize,
+		asg:  asg{c.Asgname, num, newestimage},
 	}
+
+	ecsInstance, err := r.ecsInstance(clst)
+	if err != nil {
+		return nil, err
+	}
+	unusedInstances, err := r.unusedInstance(clst)
+	if err != nil {
+		return nil, err
+	}
+
+	freeInstances, err := r.freeInstance(clst)
+	if err != nil {
+		return nil, err
+	}
+
+	clst.ecsInstance = ecsInstance
+	clst.unusedInstances = unusedInstances
+	clst.freeInstances = freeInstances
+
+	return clst, nil
+}
+
+func (r *Replacement) refreshClusterStatus(clst *cluster) (*cluster, error) {
+
+	asginfo, err := r.asgInfo(clst.asg.name)
+	if err != nil {
+		return nil, err
+	}
+	clst.size = len(asginfo.Instances)
+
+	clst.ecsInstance, err = r.ecsInstance(clst)
+	if err != nil {
+		return nil, err
+	}
+	clst.unusedInstances, err = r.unusedInstance(clst)
+	if err != nil {
+		return nil, err
+	}
+
+	clst.freeInstances, err = r.freeInstance(clst)
+	if err != nil {
+		return nil, err
+	}
+
 	return clst, nil
 }
 

@@ -87,7 +87,7 @@ func (r *Replacement) region(instancid string) (region string, err error) {
 	return region, nil
 }
 
-func (r *Replacement) swapInstance(clst *cluster) (out *ec2.StopInstancesOutput, err error) {
+func (r *Replacement) swapInstance(clst *cluster) error {
 
 	instances := clst.ecsInstance
 	var targetAZ []string
@@ -97,12 +97,12 @@ func (r *Replacement) swapInstance(clst *cluster) (out *ec2.StopInstancesOutput,
 
 	log.Info.Printf("replace ECS cluster instances with newest AMI: %s", clst.asg.newesetami)
 	if err := r.deploy.FSM.Event("start"); err != nil {
-		return nil, err
+		return err
 	}
 	for _, inst := range instances {
 		_, err := r.clearScaleinProtection(inst, asgname)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if inst.RunningTasks == 0 && inst.PendingTasks == 0 {
 			log.Info.Printf("empty ECS instances with newest AMI is detected: %s", inst.InstanceID)
@@ -111,7 +111,7 @@ func (r *Replacement) swapInstance(clst *cluster) (out *ec2.StopInstancesOutput,
 		}
 	}
 	if emptyInstanceCount == 0 {
-		return nil, fmt.Errorf("no empty isntances")
+		return fmt.Errorf("no empty isntances")
 	}
 
 	for _, az := range targetAZ {
@@ -121,16 +121,16 @@ func (r *Replacement) swapInstance(clst *cluster) (out *ec2.StopInstancesOutput,
 			_, errc := r.swap(inst, &wg, az, clst.asg.newesetami, clst.asg.name)
 			err := <-errc
 			if err != nil {
-				return nil, err
+				return err
 			}
 			log.Info.Println("successfully replaced ECS instances")
 		}
 		wg.Wait()
 	}
 	if err := r.deploy.FSM.Event("finish"); err != nil {
-		return nil, err
+		return err
 	}
-	return nil, nil
+	return nil
 }
 
 func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, az string, imageid string, asgname string) (<-chan string, <-chan error) {
@@ -298,10 +298,10 @@ func (r *Replacement) optimizeClusterSize(clst *cluster, num int) error {
 	return nil
 }
 
-func (r *Replacement) ecsInstance(clustername string, asgname string, newestimage string, clustersize int) ([]AsgInstance, error) {
+func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 
 	var ecsInstance []AsgInstance
-	status, err := r.clusterStatus(clustername)
+	status, err := r.clusterStatus(clst.name)
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +311,7 @@ func (r *Replacement) ecsInstance(clustername string, asgname string, newestimag
 			if err != nil {
 				return nil, err
 			}
-			if imageid == newestimage {
+			if imageid == clst.asg.newesetami {
 				region, err := r.region(*st.Ec2InstanceId)
 				if err != nil {
 					return nil, fmt.Errorf("cannnot get region: %v", err)
@@ -319,9 +319,8 @@ func (r *Replacement) ecsInstance(clustername string, asgname string, newestimag
 				instance := &AsgInstance{
 					InstanceID:       *st.Ec2InstanceId,
 					InstanceArn:      *st.ContainerInstanceArn,
-					ImageID:          newestimage,
-					Cluster:          clustername,
-					ClusterSize:      clustersize,
+					ImageID:          clst.asg.newesetami,
+					Cluster:          clst.name,
 					RunningTasks:     0,
 					PendingTasks:     0,
 					AvailabilityZone: region,
@@ -337,19 +336,18 @@ func (r *Replacement) ecsInstance(clustername string, asgname string, newestimag
 			if err != nil {
 				return nil, fmt.Errorf("cannnot get ami id: %v", err)
 			}
-			if imageid != newestimage {
+			if imageid != clst.asg.newesetami {
 				instance := &AsgInstance{
 					InstanceID:       *st.Ec2InstanceId,
 					InstanceArn:      *st.ContainerInstanceArn,
 					ImageID:          imageid,
 					RunningTasks:     1,
 					PendingTasks:     0,
-					Cluster:          clustername,
-					ClusterSize:      clustersize,
+					Cluster:          clst.asg.name,
 					AvailabilityZone: region,
 				}
 				ecsInstance = append(ecsInstance, *instance)
-			} else if imageid == newestimage {
+			} else if imageid == clst.asg.newesetami {
 				return nil, fmt.Errorf("instance has been already running with newest images")
 			}
 		}
@@ -357,10 +355,10 @@ func (r *Replacement) ecsInstance(clustername string, asgname string, newestimag
 	return ecsInstance, nil
 }
 
-func (r *Replacement) unusedInstance(clustername string, newestimage string) ([]string, error) {
+func (r *Replacement) unusedInstance(clst *cluster) ([]string, error) {
 
 	var unusedInstances []string
-	status, err := r.clusterStatus(clustername)
+	status, err := r.clusterStatus(clst.name)
 	if err != nil {
 		return nil, err
 	}
@@ -370,7 +368,7 @@ func (r *Replacement) unusedInstance(clustername string, newestimage string) ([]
 			if err != nil {
 				return nil, err
 			}
-			if imageid != newestimage {
+			if imageid != clst.asg.name {
 				unusedInstances = append(unusedInstances, *st.Ec2InstanceId)
 			}
 		}
@@ -378,10 +376,10 @@ func (r *Replacement) unusedInstance(clustername string, newestimage string) ([]
 	return unusedInstances, nil
 }
 
-func (r *Replacement) freeInstance(clustername string, asgname string, newestimage string, clustersize int) ([]AsgInstance, error) {
+func (r *Replacement) freeInstance(clst *cluster) ([]AsgInstance, error) {
 
 	var freeInstance []AsgInstance
-	status, err := r.clusterStatus(clustername)
+	status, err := r.clusterStatus(clst.name)
 	if err != nil {
 		return nil, err
 	}
@@ -391,7 +389,7 @@ func (r *Replacement) freeInstance(clustername string, asgname string, newestima
 			if err != nil {
 				return nil, err
 			}
-			if imageid == newestimage {
+			if imageid == clst.asg.newesetami {
 				region, err := r.region(*st.Ec2InstanceId)
 				if err != nil {
 					return nil, fmt.Errorf("cannnot get region: %v", err)
@@ -399,9 +397,8 @@ func (r *Replacement) freeInstance(clustername string, asgname string, newestima
 				instance := &AsgInstance{
 					InstanceID:       *st.Ec2InstanceId,
 					InstanceArn:      *st.ContainerInstanceArn,
-					ImageID:          newestimage,
-					Cluster:          clustername,
-					ClusterSize:      clustersize,
+					ImageID:          clst.asg.newesetami,
+					Cluster:          clst.name,
 					RunningTasks:     0,
 					PendingTasks:     0,
 					AvailabilityZone: region,

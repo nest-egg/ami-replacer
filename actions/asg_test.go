@@ -2,8 +2,9 @@ package actions
 
 import (
 	"context"
-	"github.com/nest-egg/ami-replacer/config"
 	"testing"
+
+	"github.com/nest-egg/ami-replacer/config"
 )
 
 func TestASG_ReplaceInstance(t *testing.T) {
@@ -70,8 +71,7 @@ func TestASG_ReplaceInstance(t *testing.T) {
 				Clustername: tc.clustername,
 				Dryrun:      false,
 			}
-			output, err := mockreplacer.ReplaceInstance(conf)
-			_ = output
+			err := mockreplacer.ReplaceInstance(conf)
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)
 			}

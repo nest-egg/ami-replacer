@@ -24,7 +24,6 @@ type AsgInstance struct {
 	ScalinProtection bool
 	AvailabilityZone string
 	Cluster          string
-	ClusterSize      int
 }
 
 //NewReplacer genetate new replacer object.

@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/aws/aws-sdk-go/service/autoscaling"
-
 	"github.com/nest-egg/ami-replacer/apis"
 	"github.com/nest-egg/ami-replacer/config"
 	"github.com/nest-egg/ami-replacer/log"
@@ -18,66 +16,65 @@ var (
 )
 
 //ReplaceInstance replace ecs cluster instances with newest amis.
-func (r *Replacement) ReplaceInstance(c *config.Config) (grp *autoscaling.Group, err error) {
+func (r *Replacement) ReplaceInstance(c *config.Config) error {
 
 	dryrun = c.Dryrun
 
 	clst, err := r.setClusterStatus(c)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	defaultClusterSize := clst.size
 
 	if len(clst.unusedInstances) != 0 {
 		if err := r.deploy.FSM.Event("start"); err != nil {
-			return nil, err
+			return err
 		}
 		_, err := r.replaceUnusedInstance(clst)
 		if err != nil {
-			return nil, fmt.Errorf("cannnot stop unused instance: %v", err)
+			return err
 		}
 		if err := r.deploy.FSM.Event("finish"); err != nil {
-			return nil, err
+			return err
 		}
-		clst, err = r.setClusterStatus(c)
+		clst, err = r.refreshClusterStatus(clst)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	state = r.deploy.FSM.Current()
 
 	if len(clst.freeInstances) == 0 && state == "closed" {
-		log.Info.Println("cluster has no empty ECS instances")
+		log.Info.Printf("cluster %v has no empty ECS instances", clst.name)
 		log.Info.Printf("extend the size of the cluster.. current size: %d", clst.size)
 		if err := r.optimizeClusterSize(clst, clst.size+1); err != nil {
-			return nil, err
+			return err
 		}
-		clst, err = r.setClusterStatus(c)
+		clst, err = r.refreshClusterStatus(clst)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
 	if len(clst.ecsInstance) != 0 && state == "closed" {
-		_, err := r.swapInstance(clst)
-		if err != nil {
-			return nil, err
+		if err := r.swapInstance(clst); err != nil {
+			return err
 		}
 	}
 
 	state = r.deploy.FSM.Current()
 	if state != "closed" {
-		return nil, fmt.Errorf("cluster is not steady state")
+		return fmt.Errorf("cluster is not steady state")
 	} else if state == "closed" {
 		if err := r.optimizeClusterSize(clst, defaultClusterSize); err != nil {
-			return nil, err
+			return err
 		}
 		log.Info.Println("successfully recovered the size of the cluster")
 
 	}
-	return nil, nil
+	return nil
 }
 
 //RemoveSnapShots removes obsolete snapshots.

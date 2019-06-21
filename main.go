@@ -243,9 +243,7 @@ func replaceInstances(ctx *cli.Context) error {
 		profile,
 	)
 
-	instances, err := r.ReplaceInstance(conf)
-	_ = instances
-	if err != nil {
+	if err := r.ReplaceInstance(conf); err != nil {
 		return fmt.Errorf("failed to replace instance. %v", err)
 	}
 	return nil
