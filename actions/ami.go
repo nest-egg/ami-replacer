@@ -10,6 +10,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
+
+	"github.com/nest-egg/ami-replacer/config"
 )
 
 //Ami extracts imageID of current ASG from Launch Template.
@@ -69,13 +71,16 @@ func (r *Replacement) asgInfo(asgname string) (grp *autoscaling.Group, err error
 	return asgGroup, nil
 }
 
-func (r *Replacement) deregisterAMI(imageid string, owner string, imagename string, gen int) (*ec2.DeregisterImageOutput, error) {
-	i, err := r.asg.Ec2Api.DescribeImages(&ec2.DescribeImagesInput{
-		Owners: []*string{aws.String(owner)},
+func (r *Replacement) deregisterAMI(c *config.Config) (*ec2.DeregisterImageOutput, error) {
+	gen := c.Generation
+
+	params := &ec2.DescribeImagesInput{
+		Owners: []*string{aws.String(c.Owner)},
 		Filters: []*ec2.Filter{{
 			Name:   aws.String("name"),
-			Values: []*string{aws.String(imagename)},
-		}}})
+			Values: []*string{aws.String(c.Image)},
+		}}}
+	i, err := r.asg.Ec2Api.DescribeImages(params)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +102,7 @@ func (r *Replacement) deregisterAMI(imageid string, owner string, imagename stri
 			images = append(images, m)
 		}
 		imageid := i.Images[j].ImageId
+		log.Info.Printf("images to delete: %v", *imageid)
 		_, err := r.asg.Ec2Api.DeregisterImage(&ec2.DeregisterImageInput{
 			DryRun:  aws.Bool(dryrun),
 			ImageId: aws.String(*imageid),

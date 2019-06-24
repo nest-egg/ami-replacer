@@ -3,6 +3,8 @@ package actions
 import (
 	"context"
 	"testing"
+
+	"github.com/nest-egg/ami-replacer/config"
 )
 
 func TestAMI_InfoAsg(t *testing.T) {
@@ -99,39 +101,39 @@ func TestAMI_Ami(t *testing.T) {
 	}
 }
 
-func TestAMI_DeregisterAmi(t *testing.T) {
+func TestAMI_deregisterAmi(t *testing.T) {
 	region := "ap-northeast-1"
 	profile := "admin"
 	testCases := []struct {
-		name       string
-		imageid    string
-		owner      string
-		image      string
-		generation int
-		shouldErr  bool
+		name      string
+		imageid   string
+		owner     string
+		image     string
+		gen       int
+		shouldErr bool
 	}{
 		{
-			name:       "ok",
-			imageid:    "ok",
-			owner:      "owner",
-			image:      "ok*",
-			generation: 2,
+			name:    "ok",
+			imageid: "ok",
+			owner:   "owner",
+			image:   "ok*",
+			gen:     2,
 		},
 		{
-			name:       "exec_error_DescribeImages",
-			imageid:    "exec_error_1",
-			owner:      "owner",
-			image:      "error*",
-			generation: 2,
-			shouldErr:  true,
+			name:      "exec_error_DescribeImages",
+			imageid:   "exec_error_1",
+			owner:     "owner",
+			image:     "error*",
+			gen:       2,
+			shouldErr: true,
 		},
 		{
-			name:       "exec_error_DeregisterImage",
-			imageid:    "exec_error_2",
-			owner:      "owner",
-			image:      "error2*",
-			generation: 2,
-			shouldErr:  true,
+			name:      "exec_error_DeregisterImage",
+			imageid:   "exec_error_2",
+			owner:     "owner",
+			image:     "error2*",
+			gen:       2,
+			shouldErr: true,
 		},
 	}
 	for _, tc := range testCases {
@@ -141,7 +143,13 @@ func TestAMI_DeregisterAmi(t *testing.T) {
 				region,
 				profile,
 			)
-			output, err := mockreplacer.deregisterAMI(tc.imageid, tc.owner, tc.image, tc.generation)
+			conf := &config.Config{
+				Image:      tc.image,
+				Owner:      tc.owner,
+				Generation: tc.gen,
+				Dryrun:     false,
+			}
+			output, err := mockreplacer.deregisterAMI(conf)
 			_ = output
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)

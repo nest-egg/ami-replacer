@@ -111,15 +111,10 @@ func (r *Replacement) RemoveSnapShots(c *config.Config) error {
 func (r *Replacement) RemoveAMIs(c *config.Config) error {
 
 	dryrun = c.Dryrun
-	asginstance, err := r.asgInfo(c.Asgname)
-	instanceid := asginstance.Instances[0].InstanceId
-	imageid, err := r.Ami(*instanceid)
-	log.Debug.Println(imageid)
-
-	output, err := r.deregisterAMI(imageid, c.Owner, c.Image, c.Generation)
+	output, err := r.deregisterAMI(c)
 	_ = output
 	if err != nil {
-		log.Fatalf("deregister failed! %v", err)
+		return fmt.Errorf("deregister failed! %v", err)
 	}
 	return nil
 }

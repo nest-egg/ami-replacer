@@ -26,18 +26,19 @@ make install
 
 #### Example
 
+Delete amis older than specified generations.
 ```
-ami-replacer rmi --image <image name> --owner <owner> --asgname <asg name> --dry-run
+ami-replacer rmi --image <image name> --owner <owner> --gen=<generation> --dry-run
 ```
 
 
-Delete unused snapshots
+Delete unused snapshots.
 ```
 ami-replacer rms --owner <owner> --dry-run
 ```
 
 
-Replace ECS cluster Instances with newest AMI
+Replace ECS cluster Instances with newest AMI.
 ```
 ami-replacer replace --image <image name>  --owner <owner> --asgname <asg name> --clustername <cluster name> -v --dry-run
 ```

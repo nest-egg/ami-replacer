@@ -33,15 +33,6 @@ func init() {
 			Name:  "dry-run, d",
 			Usage: "do not actually perform any operation.",
 		},
-		cli.BoolFlag{
-			Name:  "delete-snapshot, r",
-			Usage: "(default: false)",
-		},
-		cli.StringFlag{
-			Name:  "asgname",
-			Value: "asg",
-			Usage: "autoscaling group name",
-		},
 		cli.StringFlag{
 			Name:  "image",
 			Value: "other",
@@ -58,10 +49,6 @@ func init() {
 			Usage: "max gen",
 		},
 		cli.BoolFlag{
-			Name:  "test,t",
-			Usage: "enable test",
-		},
-		cli.BoolFlag{
 			Name:  "verbose,v",
 			Usage: "enable debug mode",
 		},
@@ -76,10 +63,6 @@ func init() {
 			Name:  "owner",
 			Value: "admin",
 			Usage: "ami owner",
-		},
-		cli.BoolFlag{
-			Name:  "test,t",
-			Usage: "enable test",
 		},
 		cli.BoolFlag{
 			Name:  "verbose,v",
@@ -111,10 +94,6 @@ func init() {
 			Name:  "owner",
 			Value: "admin",
 			Usage: "ami owner",
-		},
-		cli.BoolFlag{
-			Name:  "test,t",
-			Usage: "enable test",
 		},
 		cli.BoolFlag{
 			Name:  "verbose,v",
