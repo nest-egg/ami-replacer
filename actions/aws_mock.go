@@ -69,6 +69,24 @@ func NewMockReplacer(
 	}
 }
 
+func (asg *mockASGiface) UpdateAutoScalingGroup(params *autoscaling.UpdateAutoScalingGroupInput)(*autoscaling.UpdateAutoScalingGroupOutput,error){
+
+	var output *autoscaling.UpdateAutoScalingGroupOutput
+	output = &autoscaling.UpdateAutoScalingGroupOutput{
+
+	}
+	return output,nil
+}
+
+func (asg *mockASGiface) SetInstanceProtection(params *autoscaling.SetInstanceProtectionInput)(*autoscaling.SetInstanceProtectionOutput,error){
+
+	var output *autoscaling.SetInstanceProtectionOutput
+	output = &autoscaling.SetInstanceProtectionOutput{
+
+	}
+	return output,nil
+}
+
 func (asg *mockASGiface) DescribeAutoScalingGroups(params *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
 
 	var output *autoscaling.DescribeAutoScalingGroupsOutput
@@ -115,9 +133,20 @@ func (asg *mockASGiface) DescribeAutoScalingGroups(params *autoscaling.DescribeA
 		}
 	default:
 		createdTime := time.Now().UTC()
-		instance := &autoscaling.Instance{
-			AvailabilityZone: aws.String("ap-northeast-1c"),
+		instance1 := &autoscaling.Instance{
+			AvailabilityZone: aws.String("ap-northeast-1a"),
 			InstanceId:       aws.String("i-00000000000000000"),
+			LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
+				LaunchTemplateId:   aws.String("lt-00000000000000000"),
+				LaunchTemplateName: aws.String("mytemplate"),
+				Version:            aws.String("99"),
+			},
+			LifecycleState:       aws.String("InService"),
+			ProtectedFromScaleIn: aws.Bool(false),
+		}
+		instance2 := &autoscaling.Instance{
+			AvailabilityZone: aws.String("ap-northeast-1c"),
+			InstanceId:       aws.String("i-00000000000000001"),
 			LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
 				LaunchTemplateId:   aws.String("lt-00000000000000000"),
 				LaunchTemplateName: aws.String("mytemplate"),
@@ -139,7 +168,8 @@ func (asg *mockASGiface) DescribeAutoScalingGroups(params *autoscaling.DescribeA
 			HealthCheckGracePeriod: aws.Int64(300),
 			HealthCheckType:        aws.String("EC2"),
 			Instances: []*autoscaling.Instance{
-				instance,
+				instance1,
+				instance2,
 			},
 			LaunchTemplate: &autoscaling.LaunchTemplateSpecification{
 				LaunchTemplateId:   aws.String("lt-00000000000000000"),
