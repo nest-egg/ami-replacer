@@ -386,13 +386,14 @@ func (ec *mockEC2iface) DescribeInstances(params *ec2.DescribeInstancesInput) (*
 		output = &ec2.DescribeInstancesOutput{
 			Reservations: []*ec2.Reservation{
 				{
+					ReservationId: aws.String("reserv1"),
 					Instances: []*ec2.Instance{
 						{
 							Placement: &ec2.Placement{
 								AvailabilityZone: aws.String("ap-northeast-1a"),
 							},
 							State: &ec2.InstanceState{
-								Code: aws.Int64(80),
+								Code: aws.Int64(48),
 							},
 						},
 					},
@@ -442,12 +443,14 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					RunningTasksCount:    aws.Int64(1),
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
+					Status:               aws.String("ACTIVE"),
 				},
 				{
 					Ec2InstanceId:        aws.String("instance2"),
 					RunningTasksCount:    aws.Int64(0),
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn2"),
+					Status:               aws.String("ACTIVE"),
 				},
 			},
 		}
@@ -459,12 +462,14 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					RunningTasksCount:    aws.Int64(0),
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
+					Status:               aws.String("ACTIVE"),
 				},
 				{
 					Ec2InstanceId:        aws.String("instance2"),
 					RunningTasksCount:    aws.Int64(0),
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn2"),
+					Status:               aws.String("ACTIVE"),
 				},
 			},
 		}
@@ -476,6 +481,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					RunningTasksCount:    aws.Int64(1),
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
+					Status:               aws.String("ACTIVE"),
 				},
 			},
 		}
@@ -487,12 +493,14 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					RunningTasksCount:    aws.Int64(1),
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
+					Status:               aws.String("ACTIVE"),
 				},
 				{
 					Ec2InstanceId:        aws.String("instance2"),
 					RunningTasksCount:    aws.Int64(0),
 					PendingTasksCount:    aws.Int64(1),
 					ContainerInstanceArn: aws.String("arn2"),
+					Status:               aws.String("ACTIVE"),
 				},
 			},
 		}
@@ -504,12 +512,14 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					RunningTasksCount:    aws.Int64(0),
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
+					Status:               aws.String("ACTIVE"),
 				},
 				{
 					Ec2InstanceId:        aws.String("instance2"),
 					RunningTasksCount:    aws.Int64(0),
 					PendingTasksCount:    aws.Int64(1),
 					ContainerInstanceArn: aws.String("arn2"),
+					Status:               aws.String("DRAINING"),
 				},
 			},
 		}
@@ -521,12 +531,14 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					RunningTasksCount:    aws.Int64(1),
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
+					Status:               aws.String("ACTIVE"),
 				},
 				{
 					Ec2InstanceId:        aws.String("instance2"),
 					RunningTasksCount:    aws.Int64(0),
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn2"),
+					Status:               aws.String("ACTIVE"),
 				},
 			},
 		}
