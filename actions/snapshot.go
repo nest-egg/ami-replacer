@@ -1,8 +1,6 @@
 package actions
 
 import (
-	//"fmt"
-	//"regexp"
 	"sort"
 
 	"github.com/aws/aws-sdk-go/aws"

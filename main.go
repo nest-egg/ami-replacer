@@ -179,6 +179,7 @@ func removeAMIs(ctx *cli.Context) error {
 	if err := r.RemoveAMIs(conf); err != nil {
 		return fmt.Errorf("failed to remove AMIs. %v", err)
 	}
+	log.Info.Println("Successfully removed all unused AMIs")
 	return nil
 }
 
@@ -197,7 +198,7 @@ func removeSnapshots(ctx *cli.Context) error {
 	if err != nil {
 		return fmt.Errorf("failed to remove snapshots. %v", err)
 	}
-
+	log.Info.Println("Successfully removed all unused snapshots")
 	return nil
 }
 

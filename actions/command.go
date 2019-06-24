@@ -81,22 +81,26 @@ func (r *Replacement) ReplaceInstance(c *config.Config) error {
 func (r *Replacement) RemoveSnapShots(c *config.Config) error {
 
 	dryrun = c.Dryrun
-	unusedsnapshots, err := r.searchUnusedSnapshot(c.Owner)
-	sort.Sort(apis.VolumeSlice(unusedsnapshots.Snapshots))
-	length := apis.VolumeSlice(unusedsnapshots.Snapshots).Len()
+	result, err := r.searchUnusedSnapshot(c.Owner)
+	if err != nil {
+		return err
+	}
+	sort.Sort(apis.VolumeSlice(result.Snapshots))
+	length := apis.VolumeSlice(result.Snapshots).Len()
+	log.Info.Printf("%d snapshots found", length)
 	for i := 0; i < length; i++ {
-		id := *unusedsnapshots.Snapshots[i].SnapshotId
+		id := *result.Snapshots[i].SnapshotId
 		snaps, err := r.imageExists(id)
 		if err != nil {
 			return err
 		}
-		if snaps == nil {
+		if snaps.Images == nil {
 			volumes, err := r.volumeExists(id)
 			if err != nil {
 				return err
 			}
-			if volumes == nil {
-				fmt.Println(id)
+			if volumes.Volumes == nil {
+				log.Info.Printf("Delete snapshot: %v", id)
 				_, err := r.deleteSnapshot(id)
 				if err != nil {
 					return err
@@ -104,7 +108,7 @@ func (r *Replacement) RemoveSnapShots(c *config.Config) error {
 			}
 		}
 	}
-	return err
+	return nil
 }
 
 //RemoveAMIs removes obsolete AMIs
