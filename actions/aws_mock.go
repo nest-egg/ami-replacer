@@ -69,22 +69,18 @@ func NewMockReplacer(
 	}
 }
 
-func (asg *mockASGiface) UpdateAutoScalingGroup(params *autoscaling.UpdateAutoScalingGroupInput)(*autoscaling.UpdateAutoScalingGroupOutput,error){
+func (asg *mockASGiface) UpdateAutoScalingGroup(params *autoscaling.UpdateAutoScalingGroupInput) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
 
 	var output *autoscaling.UpdateAutoScalingGroupOutput
-	output = &autoscaling.UpdateAutoScalingGroupOutput{
-
-	}
-	return output,nil
+	output = &autoscaling.UpdateAutoScalingGroupOutput{}
+	return output, nil
 }
 
-func (asg *mockASGiface) SetInstanceProtection(params *autoscaling.SetInstanceProtectionInput)(*autoscaling.SetInstanceProtectionOutput,error){
+func (asg *mockASGiface) SetInstanceProtection(params *autoscaling.SetInstanceProtectionInput) (*autoscaling.SetInstanceProtectionOutput, error) {
 
 	var output *autoscaling.SetInstanceProtectionOutput
-	output = &autoscaling.SetInstanceProtectionOutput{
-
-	}
-	return output,nil
+	output = &autoscaling.SetInstanceProtectionOutput{}
+	return output, nil
 }
 
 func (asg *mockASGiface) DescribeAutoScalingGroups(params *autoscaling.DescribeAutoScalingGroupsInput) (*autoscaling.DescribeAutoScalingGroupsOutput, error) {
