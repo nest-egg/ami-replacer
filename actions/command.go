@@ -9,7 +9,6 @@ import (
 	"github.com/nest-egg/ami-replacer/log"
 )
 
-//state of asg
 var (
 	state  string
 	dryrun bool
@@ -71,7 +70,7 @@ func (r *Replacement) ReplaceInstance(c *config.Config) error {
 		if err := r.optimizeClusterSize(clst, defaultClusterSize); err != nil {
 			return err
 		}
-		log.Info.Println("successfully recovered the size of the cluster")
+		log.Info.Println("successfully restored the size of the cluster")
 
 	}
 	return nil
