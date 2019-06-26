@@ -279,7 +279,7 @@ func (r *Replacement) optimizeClusterSize(clst *cluster, num int) error {
 		for _, st := range status.ContainerInstances {
 			log.Debug.Printf("current cluster size: %d", clst.size)
 			log.Debug.Printf("dst size: %d", num)
-			if *st.Status == "DRAINING" && clst.size > num {
+			if *st.Status == "DRAINING" && len(status.ContainerInstances) > num {
 				offset++
 			}
 		}
