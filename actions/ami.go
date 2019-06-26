@@ -59,7 +59,6 @@ func (r *Replacement) asgInfo(asgname string) (grp *autoscaling.Group, err error
 	if err != nil {
 		return nil, err
 	}
-	log.Debug.Printf("described asg... %v", output)
 	if len(output.AutoScalingGroups) == 0 {
 		return nil, fmt.Errorf("There is not such autoscaling Group as %s", asgname)
 	}
@@ -67,7 +66,6 @@ func (r *Replacement) asgInfo(asgname string) (grp *autoscaling.Group, err error
 	if len(asgGroup.Instances) == 0 {
 		return nil, fmt.Errorf("missing Instances: %+v", *asgGroup)
 	}
-	log.Debug.Println(asgGroup)
 	return asgGroup, nil
 }
 
