@@ -155,10 +155,13 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, az string, imag
 						},
 					}
 					clustername := inst.Cluster
+					if err := r.waitTasksRunning(clustername); err != nil {
+						errc <- err
+					}
 					output, err := r.replaceUnusedInstance(c)
 					_ = output
 					if err != nil {
-						errc <- fmt.Errorf("cannnot stop instance: %v", err)
+						errc <- err
 					}
 					if err := r.waitTasksRunning(clustername); err != nil {
 						errc <- err
@@ -183,8 +186,8 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, az string, imag
 func (r *Replacement) waitTasksRunning(clustername string) error {
 
 	var taskscount int64
-	b := newExponentialBackOff()
-	bf := backoff.WithMaxRetries(b, 10)
+	b := newShortExponentialBackOff()
+	bf := backoff.WithMaxRetries(b, 100)
 
 	counter := func() error {
 		status, err := r.clusterStatus(clustername)
@@ -215,7 +218,7 @@ func (r *Replacement) updateASG(asgname string, num int) (*autoscaling.UpdateAut
 	params := &autoscaling.UpdateAutoScalingGroupInput{
 		AutoScalingGroupName:             aws.String(asgname),
 		DesiredCapacity:                  aws.Int64(desired),
-		MaxSize:                          aws.Int64(desired),
+		MinSize:                          aws.Int64(desired),
 		NewInstancesProtectedFromScaleIn: aws.Bool(true),
 	}
 	result, err := r.asg.AsgAPI.UpdateAutoScalingGroup(params)
@@ -252,6 +255,7 @@ func (r *Replacement) optimizeClusterSize(clst *cluster, num int) error {
 	if err != nil {
 		return err
 	}
+	clst.size = len(status.ContainerInstances)
 	for _, st := range status.ContainerInstances {
 		if *st.Status == "DRAINING" {
 			clst.size = clst.size - 1
@@ -343,7 +347,7 @@ func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 					ImageID:          imageid,
 					RunningTasks:     1,
 					PendingTasks:     0,
-					Cluster:          clst.asg.name,
+					Cluster:          clst.name,
 					AvailabilityZone: region,
 				}
 				ecsInstance = append(ecsInstance, *instance)

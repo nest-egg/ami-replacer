@@ -7,6 +7,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/nest-egg/ami-replacer/log"
 
+	"github.com/cenkalti/backoff"
 	"github.com/nest-egg/ami-replacer/config"
 )
 
@@ -148,6 +149,56 @@ func (r *Replacement) drainInstance(inst AsgInstance) (*ecs.UpdateContainerInsta
 	if err != nil {
 		return nil, err
 	}
+
+	b := newShortExponentialBackOff()
+	bf := backoff.WithMaxRetries(b, 50)
+
+	counter := func() error {
+		status, err := r.clusterStatus(inst.Cluster)
+		if err != nil {
+			return err
+		}
+		for _, st := range status.ContainerInstances {
+			if *st.Status == "DRAINING" && *st.RunningTasksCount != int64(0) {
+				return fmt.Errorf("Waiting for running new tasks")
+			}
+		}
+		return nil
+	}
+
+	if err := backoff.Retry(counter, bf); err != nil {
+		return nil, fmt.Errorf("waiter has timed out")
+	}
+
 	log.Info.Printf("ECS instances %s has been successfully drained", inst.InstanceID)
 	return result, nil
+}
+
+func (r *Replacement) waitInstanceRunning(clst *cluster, num int) error {
+
+	var count int
+	b := newExponentialBackOff()
+	bf := backoff.WithMaxRetries(b, 10)
+
+	counter := func() error {
+		status, err := r.clusterStatus(clst.name)
+		if err != nil {
+			return err
+		}
+		for _, st := range status.ContainerInstances {
+			if *st.Status == "ACTIVE" {
+				count++
+			}
+		}
+		if count != num {
+			return fmt.Errorf("still waitng for instance running")
+		}
+		return nil
+	}
+
+	if err := backoff.Retry(counter, bf); err != nil {
+		return fmt.Errorf("waiter has timed out")
+	}
+
+	return nil
 }
