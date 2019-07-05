@@ -48,9 +48,16 @@ func (r *Replacement) ReplaceInstance(c *config.Config) error {
 	if len(clst.freeInstances) == 0 && state == "closed" {
 		log.Info.Printf("cluster %v has no empty ECS instances", clst.name)
 		log.Info.Printf("extend the size of the cluster.. current size: %d", clst.size)
-		if err := r.optimizeClusterSize(clst, clst.size+1); err != nil {
-			return err
+		if clst.size+1 > defaultClusterSize {
+			if err := r.optimizeClusterSize(clst, clst.size+1); err != nil {
+				return err
+			}
+		} else if clst.size+1 <= defaultClusterSize {
+			if err := r.waitInstanceRunning(clst, defaultClusterSize); err != nil {
+				return err
+			}
 		}
+
 		clst, err = r.refreshClusterStatus(clst)
 		if err != nil {
 			return err
