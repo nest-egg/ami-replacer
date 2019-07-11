@@ -1,8 +1,8 @@
 package actions
 
 import (
-	"github.com/cenkalti/backoff"
 	"time"
+	"github.com/cenkalti/backoff"
 )
 
 func newExponentialBackOff() *backoff.ExponentialBackOff {
@@ -17,8 +17,8 @@ func newExponentialBackOff() *backoff.ExponentialBackOff {
 func newShortExponentialBackOff() *backoff.ExponentialBackOff {
 	b := backoff.NewExponentialBackOff()
 	b.InitialInterval = time.Duration(1) * time.Second
-	b.MaxInterval = time.Duration(5) * time.Second
-	b.MaxElapsedTime = time.Duration(300) * time.Second
+	b.MaxInterval = time.Duration(10) * time.Second
+	b.MaxElapsedTime = time.Duration(600) * time.Second
 	b.Reset()
 	return b
 }
