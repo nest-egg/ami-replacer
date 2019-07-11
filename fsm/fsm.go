@@ -42,5 +42,5 @@ func NewDeploy(to string) *Deploy {
 }
 
 func (d *Deploy) enterState(e *fsm.Event) {
-	log.Info.Printf("The State changed %s to %s\n", d.To, e.Dst)
+	log.Debug.Printf("The State changed %s to %s\n", d.To, e.Dst)
 }
