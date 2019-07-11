@@ -90,7 +90,6 @@ func (r *Replacement) region(instancid string) (region string, err error) {
 func (r *Replacement) swapInstance(clst *cluster) error {
 
 	instances := clst.ecsInstance
-	var targetAZ []string
 	var wg sync.WaitGroup
 	var emptyInstanceCount int
 	asgname := clst.asg.name
@@ -106,7 +105,6 @@ func (r *Replacement) swapInstance(clst *cluster) error {
 		}
 		if inst.RunningTasks == 0 && inst.PendingTasks == 0 {
 			log.Info.Printf("empty ECS instances with newest AMI is detected: %s", inst.InstanceID)
-			targetAZ = append(targetAZ, inst.AvailabilityZone)
 			emptyInstanceCount++
 		}
 	}
@@ -114,26 +112,23 @@ func (r *Replacement) swapInstance(clst *cluster) error {
 		return fmt.Errorf("no empty isntances")
 	}
 
-	for _, az := range targetAZ {
-		log.Info.Printf("replace ECS instances running in az: %s", az)
-		for _, inst := range instances {
-			wg.Add(1)
-			_, errc := r.swap(inst, &wg, az, clst.asg.newesetami, clst.asg.name)
-			err := <-errc
-			if err != nil {
-				return err
-			}
-			log.Info.Println("successfully replaced ECS instances")
+	for _, inst := range instances {
+		wg.Add(1)
+		_, errc := r.swap(inst, &wg, clst.asg.newesetami, clst.asg.name)
+		err := <-errc
+		if err != nil {
+			return err
 		}
-		wg.Wait()
+		log.Info.Println("successfully replaced ECS instances")
 	}
+	wg.Wait()
 	if err := r.deploy.FSM.Event("finish"); err != nil {
 		return err
 	}
 	return nil
 }
 
-func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, az string, imageid string, asgname string) (<-chan string, <-chan error) {
+func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, imageid string, asgname string) (<-chan string, <-chan error) {
 	out := make(chan string, 1)
 	errc := make(chan error, 1)
 	var stoptarget []string
@@ -141,36 +136,34 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, az string, imag
 		{
 			log.Info.Printf("start replacing instances: %v", inst)
 			if inst.RunningTasks != 0 && inst.ImageID != imageid {
-				if inst.AvailabilityZone == az {
-					log.Info.Printf("ECS instances %s is running obsolete AMI in target az: %v", inst.InstanceID, az)
-					_, err := r.drainInstance(inst)
-					if err != nil {
-						errc <- fmt.Errorf("cannnot drain instance: %v", err)
-					}
-					stoptarget = append(stoptarget, inst.InstanceID)
-					c := &cluster{
-						unusedInstances: stoptarget,
-						asg: asg{
-							name: asgname,
-						},
-					}
-					clustername := inst.Cluster
-					if err := r.waitTasksRunning(clustername); err != nil {
-						errc <- err
-					}
-					output, err := r.replaceUnusedInstance(c)
-					_ = output
-					if err != nil {
-						errc <- err
-					}
-					if err := r.waitTasksRunning(clustername); err != nil {
-						errc <- err
-					}
-					log.Info.Printf("target ECS instances successfully stopped")
+				log.Info.Printf("ECS instances %s is running obsolete AMI", inst.InstanceID)
+				_, err := r.drainInstance(inst)
+				if err != nil {
+					errc <- fmt.Errorf("cannnot drain instance: %v", err)
 				}
-			} else if inst.RunningTasks != 0 && inst.ImageID == imageid && inst.AvailabilityZone == az {
+				stoptarget = append(stoptarget, inst.InstanceID)
+				c := &cluster{
+					unusedInstances: stoptarget,
+					asg: asg{
+						name: asgname,
+					},
+				}
+				clustername := inst.Cluster
+				if err := r.waitTasksRunning(clustername); err != nil {
+					errc <- err
+				}
+				output, err := r.replaceUnusedInstance(c)
+				_ = output
+				if err != nil {
+					errc <- err
+				}
+				if err := r.waitTasksRunning(clustername); err != nil {
+					errc <- err
+				}
+				log.Info.Printf("target ECS instances successfully stopped")
+			} else if inst.RunningTasks != 0 && inst.ImageID == imageid {
 				log.Info.Printf("target ECS instances %s already runs newest AMI", inst.InstanceID)
-			} else if inst.RunningTasks == 0 && inst.AvailabilityZone == az {
+			} else if inst.RunningTasks == 0 {
 				log.Info.Printf("nothing to do. empty instance with new imageid: %v", inst.InstanceID)
 			}
 			out <- "done!"
