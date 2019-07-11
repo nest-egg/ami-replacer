@@ -1,8 +1,8 @@
 package actions
 
 import (
-	"time"
 	"github.com/cenkalti/backoff"
+	"time"
 )
 
 func newExponentialBackOff() *backoff.ExponentialBackOff {
