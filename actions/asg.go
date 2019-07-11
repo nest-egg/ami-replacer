@@ -268,6 +268,7 @@ func (r *Replacement) optimizeClusterSize(clst *cluster, num int) error {
 		return err
 	}
 	counter := func() error {
+		offset = 0
 		asginfo, err := r.asgInfo(asgname)
 		if err != nil {
 			return fmt.Errorf("cannnot get Asg Info: %v", err)
@@ -305,10 +306,30 @@ func (r *Replacement) optimizeClusterSize(clst *cluster, num int) error {
 func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 
 	var ecsInstance []AsgInstance
+	var count int
+	var len int
 	status, err := r.clusterStatus(clst.name)
 	if err != nil {
 		return nil, err
 	}
+
+	for _, st := range status.ContainerInstances {
+		if *st.Status == "ACTIVE" {
+			len++
+			imageid, err := r.Ami(*st.Ec2InstanceId)
+			if err != nil {
+				return nil, err
+			}
+			if imageid == clst.asg.newesetami {
+				count++
+			}
+		}
+	}
+
+	if count == len {
+		return nil, fmt.Errorf("All instances have been already running with newest images")
+	}
+
 	for _, st := range status.ContainerInstances {
 		if *st.RunningTasksCount == int64(0) && *st.PendingTasksCount == int64(0) && *st.Status == "ACTIVE" {
 			imageid, err := r.Ami(*st.Ec2InstanceId)
@@ -352,7 +373,7 @@ func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 				}
 				ecsInstance = append(ecsInstance, *instance)
 			} else if imageid == clst.asg.newesetami {
-				return nil, fmt.Errorf("instance has been already running with newest images")
+				log.Info.Printf("instance  %v has been already running with newest images", *st.Ec2InstanceId)
 			}
 		}
 	}
