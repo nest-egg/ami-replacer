@@ -99,7 +99,7 @@ func (r *Replacement) swapInstance(clst *cluster) error {
 		return err
 	}
 	for _, inst := range instances {
-		_, err := r.clearScaleinProtection(inst, asgname)
+		_, err := r.clearScaleinProtection(inst.InstanceID, asgname)
 		if err != nil {
 			return err
 		}
@@ -149,7 +149,7 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, imageid string,
 					},
 				}
 				clustername := inst.Cluster
-				if err := r.waitTasksRunning(clustername); err != nil {
+				if err := r.waitTasksRunning(clustername, asgname); err != nil {
 					errc <- err
 				}
 				output, err := r.replaceUnusedInstance(c)
@@ -157,7 +157,7 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, imageid string,
 				if err != nil {
 					errc <- err
 				}
-				if err := r.waitTasksRunning(clustername); err != nil {
+				if err := r.waitTasksRunning(clustername, asgname); err != nil {
 					errc <- err
 				}
 				log.Info.Printf("target ECS instances successfully stopped")
@@ -176,13 +176,14 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, imageid string,
 	return out, errc
 }
 
-func (r *Replacement) waitTasksRunning(clustername string) error {
+func (r *Replacement) waitTasksRunning(clustername string, asgname string) error {
 
 	var taskscount int64
 	b := newShortExponentialBackOff()
 	bf := backoff.WithMaxRetries(b, 100)
 
 	counter := func() error {
+		taskscount = 0
 		status, err := r.clusterStatus(clustername)
 		if err != nil {
 			return err
@@ -190,13 +191,22 @@ func (r *Replacement) waitTasksRunning(clustername string) error {
 		for _, st := range status.ContainerInstances {
 			if *st.Status == "ACTIVE" {
 				taskscount += *st.RunningTasksCount
+				if *st.RunningTasksCount != int64(0) {
+					r.setScaleinProtection(*st.Ec2InstanceId, asgname)
+				} else if *st.RunningTasksCount == int64(0) {
+					r.clearScaleinProtection(*st.Ec2InstanceId, asgname)
+				}
+			} else if *st.Status != "ACTIVE" {
+				r.clearScaleinProtection(*st.Ec2InstanceId, asgname)
 			}
 		}
 		if taskscount == 0 {
 			return fmt.Errorf("waiting for RunningTasksCount >=1")
 		}
+
 		return nil
 	}
+
 	if err := backoff.Retry(counter, bf); err != nil {
 		return err
 	}
@@ -212,7 +222,7 @@ func (r *Replacement) updateASG(asgname string, num int) (*autoscaling.UpdateAut
 		AutoScalingGroupName:             aws.String(asgname),
 		DesiredCapacity:                  aws.Int64(desired),
 		MinSize:                          aws.Int64(desired),
-		NewInstancesProtectedFromScaleIn: aws.Bool(true),
+		NewInstancesProtectedFromScaleIn: aws.Bool(false),
 	}
 	result, err := r.asg.AsgAPI.UpdateAutoScalingGroup(params)
 	if err != nil {
@@ -221,14 +231,30 @@ func (r *Replacement) updateASG(asgname string, num int) (*autoscaling.UpdateAut
 	return result, nil
 }
 
-func (r *Replacement) clearScaleinProtection(instance AsgInstance, asgname string) (*autoscaling.SetInstanceProtectionOutput, error) {
+func (r *Replacement) clearScaleinProtection(instanceid string, asgname string) (*autoscaling.SetInstanceProtectionOutput, error) {
 
 	params := &autoscaling.SetInstanceProtectionInput{
 		AutoScalingGroupName: aws.String(asgname),
 		InstanceIds: []*string{
-			aws.String(instance.InstanceID),
+			aws.String(instanceid),
 		},
 		ProtectedFromScaleIn: aws.Bool(false),
+	}
+	result, err := r.asg.AsgAPI.SetInstanceProtection(params)
+	if err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (r *Replacement) setScaleinProtection(instanceid string, asgname string) (*autoscaling.SetInstanceProtectionOutput, error) {
+
+	params := &autoscaling.SetInstanceProtectionInput{
+		AutoScalingGroupName: aws.String(asgname),
+		InstanceIds: []*string{
+			aws.String(instanceid),
+		},
+		ProtectedFromScaleIn: aws.Bool(true),
 	}
 	result, err := r.asg.AsgAPI.SetInstanceProtection(params)
 	if err != nil {
@@ -307,7 +333,7 @@ func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 	}
 
 	for _, st := range status.ContainerInstances {
-		if *st.Status == "ACTIVE" {
+		if *st.Status == "ACTIVE" && *st.AgentConnected == true {
 			len++
 			imageid, err := r.Ami(*st.Ec2InstanceId)
 			if err != nil {
