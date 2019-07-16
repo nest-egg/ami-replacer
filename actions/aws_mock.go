@@ -470,6 +470,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
 					Status:               aws.String("ACTIVE"),
+					AgentConnected:       aws.Bool(true),
 				},
 				{
 					Ec2InstanceId:        aws.String("instance2"),
@@ -477,6 +478,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn2"),
 					Status:               aws.String("ACTIVE"),
+					AgentConnected:       aws.Bool(true),
 				},
 			},
 		}
@@ -489,6 +491,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
 					Status:               aws.String("ACTIVE"),
+					AgentConnected:       aws.Bool(true),
 				},
 				{
 					Ec2InstanceId:        aws.String("instance2"),
@@ -496,6 +499,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn2"),
 					Status:               aws.String("ACTIVE"),
+					AgentConnected:       aws.Bool(true),
 				},
 			},
 		}
@@ -508,6 +512,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
 					Status:               aws.String("ACTIVE"),
+					AgentConnected:       aws.Bool(true),
 				},
 			},
 		}
@@ -520,6 +525,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
 					Status:               aws.String("ACTIVE"),
+					AgentConnected:       aws.Bool(true),
 				},
 				{
 					Ec2InstanceId:        aws.String("instance2"),
@@ -527,6 +533,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					PendingTasksCount:    aws.Int64(1),
 					ContainerInstanceArn: aws.String("arn2"),
 					Status:               aws.String("ACTIVE"),
+					AgentConnected:       aws.Bool(true),
 				},
 			},
 		}
@@ -539,6 +546,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
 					Status:               aws.String("ACTIVE"),
+					AgentConnected:       aws.Bool(true),
 				},
 				{
 					Ec2InstanceId:        aws.String("instance2"),
@@ -546,6 +554,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					PendingTasksCount:    aws.Int64(1),
 					ContainerInstanceArn: aws.String("arn2"),
 					Status:               aws.String("DRAINING"),
+					AgentConnected:       aws.Bool(false),
 				},
 			},
 		}
@@ -558,6 +567,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn1"),
 					Status:               aws.String("ACTIVE"),
+					AgentConnected:       aws.Bool(true),
 				},
 				{
 					Ec2InstanceId:        aws.String("instance2"),
@@ -565,6 +575,7 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					PendingTasksCount:    aws.Int64(0),
 					ContainerInstanceArn: aws.String("arn2"),
 					Status:               aws.String("ACTIVE"),
+					AgentConnected:       aws.Bool(true),
 				},
 			},
 		}
