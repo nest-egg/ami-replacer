@@ -556,6 +556,14 @@ func (ecsi *mockECSiface) DescribeContainerInstances(params *ecs.DescribeContain
 					Status:               aws.String("DRAINING"),
 					AgentConnected:       aws.Bool(false),
 				},
+				{
+					Ec2InstanceId:        aws.String("instance3"),
+					RunningTasksCount:    aws.Int64(0),
+					PendingTasksCount:    aws.Int64(1),
+					ContainerInstanceArn: aws.String("arn2"),
+					Status:               aws.String("ACTIVE"),
+					AgentConnected:       aws.Bool(false),
+				},
 			},
 		}
 	default:
