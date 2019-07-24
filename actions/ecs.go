@@ -1,14 +1,13 @@
 package actions
 
 import (
-	"fmt"
-
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ecs"
 	"github.com/nest-egg/ami-replacer/log"
 
 	"github.com/cenkalti/backoff"
 	"github.com/nest-egg/ami-replacer/config"
+	"golang.org/x/xerrors"
 )
 
 type cluster struct {
@@ -30,17 +29,14 @@ func (r *Replacement) setClusterStatus(c *config.Config) (*cluster, error) {
 
 	newestimage, err := r.newestAMI(c.Owner, c.Image)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get newest ami id: %w", err)
 	}
 
 	asginfo, err := r.asgInfo(c.Asgname)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get asg info: %w", err)
 	}
 	num := len(asginfo.Instances)
-	if err != nil {
-		return nil, err
-	}
 	clusterSize := len(asginfo.Instances)
 
 	clst := &cluster{
@@ -51,16 +47,16 @@ func (r *Replacement) setClusterStatus(c *config.Config) (*cluster, error) {
 
 	ecsInstance, err := r.ecsInstance(clst)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get instances to replace: %w", err)
 	}
 	unusedInstances, err := r.unusedInstance(clst)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get unused instances with newest ami: %w", err)
 	}
 
 	freeInstances, err := r.freeInstance(clst)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get free instances: %w", err)
 	}
 
 	clst.ecsInstance = ecsInstance
@@ -74,22 +70,22 @@ func (r *Replacement) refreshClusterStatus(clst *cluster) (*cluster, error) {
 
 	asginfo, err := r.asgInfo(clst.asg.name)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get asg info: %w", err)
 	}
 	clst.size = len(asginfo.Instances)
 
 	clst.ecsInstance, err = r.ecsInstance(clst)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get instances to replace: %w", err)
 	}
 	clst.unusedInstances, err = r.unusedInstance(clst)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get unused instances with newest ami: %w", err)
 	}
 
 	clst.freeInstances, err = r.freeInstance(clst)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to get free instances: %w", err)
 	}
 
 	return clst, nil
@@ -98,11 +94,11 @@ func (r *Replacement) refreshClusterStatus(clst *cluster) (*cluster, error) {
 func (r *Replacement) clusterStatus(clustername string) (*ecs.DescribeContainerInstancesOutput, error) {
 	arns, err := r.ecsInstanceArn(clustername)
 	if err != nil {
-		return nil, fmt.Errorf("cannnot get instance arn: %v", err)
+		return nil, xerrors.Errorf("cannnot get instance arn: %w", err)
 	}
 	status, err := r.ecsInstanceStatus(clustername, arns)
 	if err != nil {
-		return nil, fmt.Errorf("cannnot get ecs status : %v", err)
+		return nil, xerrors.Errorf("cannnot get ecs status : %w", err)
 	}
 	return status, nil
 }
@@ -114,7 +110,7 @@ func (r *Replacement) ecsInstanceArn(clustername string) (out []string, err erro
 	}
 	output, err := r.asg.EcsAPI.ListContainerInstances(params)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to list container instances: %w", err)
 	}
 	for _, instance := range output.ContainerInstanceArns {
 		arns = append(arns, aws.StringValue(instance))
@@ -128,10 +124,9 @@ func (r *Replacement) ecsInstanceStatus(clustername string, instances []string) 
 		Cluster:            aws.String(clustername),
 		ContainerInstances: aws.StringSlice(instances),
 	}
-	log.Debug.Println(params)
 	output, err := r.asg.EcsAPI.DescribeContainerInstances(params)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to describe container instances: %w", err)
 	}
 	return output, err
 }
@@ -147,7 +142,7 @@ func (r *Replacement) drainInstance(inst AsgInstance) (*ecs.UpdateContainerInsta
 	}
 	result, err := r.asg.EcsAPI.UpdateContainerInstancesState(params)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to update container instance state: %w", err)
 	}
 
 	b := newShortExponentialBackOff()
@@ -156,18 +151,18 @@ func (r *Replacement) drainInstance(inst AsgInstance) (*ecs.UpdateContainerInsta
 	counter := func() error {
 		status, err := r.clusterStatus(inst.Cluster)
 		if err != nil {
-			return err
+			return xerrors.Errorf("failed to get cluster status: %w", err)
 		}
 		for _, st := range status.ContainerInstances {
 			if *st.Status == "DRAINING" && *st.RunningTasksCount != int64(0) {
-				return fmt.Errorf("Waiting for running new tasks")
+				return xerrors.New("Waiting for running new tasks")
 			}
 		}
 		return nil
 	}
 
 	if err := backoff.Retry(counter, bf); err != nil {
-		return nil, fmt.Errorf("waiter has timed out")
+		return nil, xerrors.New("waiter has timed out")
 	}
 
 	log.Info.Printf("ECS instances %s has been successfully drained", inst.InstanceID)
@@ -183,7 +178,7 @@ func (r *Replacement) waitInstanceRunning(clst *cluster, num int) error {
 	counter := func() error {
 		status, err := r.clusterStatus(clst.name)
 		if err != nil {
-			return err
+			return xerrors.Errorf("failed to get cluster status: %w", err)
 		}
 		for _, st := range status.ContainerInstances {
 			if *st.Status == "ACTIVE" {
@@ -191,13 +186,13 @@ func (r *Replacement) waitInstanceRunning(clst *cluster, num int) error {
 			}
 		}
 		if count != num {
-			return fmt.Errorf("still waitng for instance running")
+			return xerrors.New("still waitng for instance running")
 		}
 		return nil
 	}
 
 	if err := backoff.Retry(counter, bf); err != nil {
-		return fmt.Errorf("waiter has timed out")
+		return xerrors.New("waiter has timed out")
 	}
 
 	return nil

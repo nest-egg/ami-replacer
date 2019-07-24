@@ -15,4 +15,5 @@ require (
 	golang.org/x/net v0.0.0-20190404232315-eb5bcb51f2a3 // indirect
 	golang.org/x/sys v0.0.0-20190405154228-4b34438f7a67 // indirect
 	golang.org/x/tools v0.0.0-20190409223705-96f2e7ef861b // indirect
+	golang.org/x/xerrors v0.0.0-20190717185122-a985d3407aa7
 )

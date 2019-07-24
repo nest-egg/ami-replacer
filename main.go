@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	"github.com/urfave/cli"
@@ -10,6 +9,7 @@ import (
 	"github.com/nest-egg/ami-replacer/actions"
 	"github.com/nest-egg/ami-replacer/config"
 	"github.com/nest-egg/ami-replacer/log"
+	"golang.org/x/xerrors"
 )
 
 var (
@@ -143,7 +143,7 @@ func doMain(args []string) {
 
 	err := app.Run(args)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("failed to excute cmd: %+v", err)
 	}
 }
 
@@ -163,11 +163,11 @@ func removeAMIs(ctx *cli.Context) error {
 
 	_, err := config.ParseRegion(region)
 	if err != nil {
-		log.Fatalf("aws region is invalid! %v", err)
+		return xerrors.Errorf("aws region is invalid!: %w", err)
 	}
 
 	if !config.IsValidProfile(profile) {
-		log.Fatal("Invalid config")
+		return xerrors.New("Invalid config")
 	}
 
 	r := makeReplacer(
@@ -177,7 +177,7 @@ func removeAMIs(ctx *cli.Context) error {
 	)
 
 	if err := r.RemoveAMIs(conf); err != nil {
-		return fmt.Errorf("failed to remove AMIs. %v", err)
+		return xerrors.Errorf("failed to remove AMIs: %w", err)
 	}
 	log.Info.Println("Successfully removed all unused AMIs")
 	return nil
@@ -196,7 +196,7 @@ func removeSnapshots(ctx *cli.Context) error {
 
 	err := r.RemoveSnapShots(conf)
 	if err != nil {
-		return fmt.Errorf("failed to remove snapshots. %v", err)
+		return xerrors.Errorf("failed to remove snapshots: %w", err)
 	}
 	log.Info.Println("Successfully removed all unused snapshots")
 	return nil
@@ -210,11 +210,11 @@ func replaceInstances(ctx *cli.Context) error {
 
 	_, err := config.ParseRegion(region)
 	if err != nil {
-		return fmt.Errorf("aws region is invalid! %v", err)
+		return xerrors.Errorf("aws region is invalid!: %w", err)
 	}
 
 	if !config.IsValidProfile(profile) {
-		return fmt.Errorf("Invalid Config")
+		return xerrors.New("Invalid Config")
 	}
 
 	r := makeReplacer(
@@ -224,7 +224,7 @@ func replaceInstances(ctx *cli.Context) error {
 	)
 
 	if err := r.ReplaceInstance(conf); err != nil {
-		return fmt.Errorf("failed to replace instance. %v", err)
+		return xerrors.Errorf("failed to replace instance: %w", err)
 	}
 	return nil
 }

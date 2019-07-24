@@ -7,6 +7,7 @@ import (
 	"github.com/nest-egg/ami-replacer/apis"
 	"github.com/nest-egg/ami-replacer/config"
 	"github.com/nest-egg/ami-replacer/log"
+	"golang.org/x/xerrors"
 )
 
 var (
@@ -21,25 +22,25 @@ func (r *Replacement) ReplaceInstance(c *config.Config) error {
 
 	clst, err := r.setClusterStatus(c)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to set cluster status: %w", err)
 	}
 
 	defaultClusterSize := clst.size
 
 	if len(clst.unusedInstances) != 0 {
 		if err := r.deploy.FSM.Event("start"); err != nil {
-			return err
+			return xerrors.New("failed to enter state")
 		}
 		_, err := r.replaceUnusedInstance(clst)
 		if err != nil {
-			return err
+			return xerrors.Errorf("failed to replace unused instance: %w", err)
 		}
 		if err := r.deploy.FSM.Event("finish"); err != nil {
-			return err
+			return xerrors.New("failed to enter state")
 		}
 		clst, err = r.refreshClusterStatus(clst)
 		if err != nil {
-			return err
+			return xerrors.Errorf("failed to refresh cluster status: %w", err)
 		}
 	}
 
@@ -50,23 +51,23 @@ func (r *Replacement) ReplaceInstance(c *config.Config) error {
 		log.Info.Printf("extend the size of the cluster.. current size: %d", clst.size)
 		if clst.size+1 > defaultClusterSize {
 			if err := r.optimizeClusterSize(clst, clst.size+1); err != nil {
-				return err
+				return xerrors.Errorf("failed to increase asg size: %w", err)
 			}
 		} else if clst.size+1 <= defaultClusterSize {
 			if err := r.waitInstanceRunning(clst, defaultClusterSize); err != nil {
-				return err
+				return xerrors.Errorf("failed to execute waiter: %w", err)
 			}
 		}
 
 		clst, err = r.refreshClusterStatus(clst)
 		if err != nil {
-			return err
+			return xerrors.Errorf("failed to refresh cluster status: %w", err)
 		}
 	}
 
 	if len(clst.ecsInstance) != 0 && state == "closed" {
 		if err := r.swapInstance(clst); err != nil {
-			return err
+			return xerrors.Errorf("failed to swap cluster instance: %w", err)
 		}
 	}
 
@@ -75,7 +76,7 @@ func (r *Replacement) ReplaceInstance(c *config.Config) error {
 		return fmt.Errorf("cluster is not steady state")
 	} else if state == "closed" {
 		if err := r.optimizeClusterSize(clst, defaultClusterSize); err != nil {
-			return err
+			return xerrors.Errorf("failed to decrease asg size: %w", err)
 		}
 		log.Info.Println("successfully restored the size of the cluster")
 
@@ -89,7 +90,7 @@ func (r *Replacement) RemoveSnapShots(c *config.Config) error {
 	dryrun = c.Dryrun
 	result, err := r.searchUnusedSnapshot(c.Owner)
 	if err != nil {
-		return err
+		return xerrors.Errorf("failed to searcj unused instance: %w", err)
 	}
 	sort.Sort(apis.VolumeSlice(result.Snapshots))
 	length := apis.VolumeSlice(result.Snapshots).Len()
@@ -98,18 +99,18 @@ func (r *Replacement) RemoveSnapShots(c *config.Config) error {
 		id := *result.Snapshots[i].SnapshotId
 		snaps, err := r.imageExists(id)
 		if err != nil {
-			return err
+			return xerrors.Errorf("failed to get existing image: %w", err)
 		}
 		if snaps.Images == nil {
 			volumes, err := r.volumeExists(id)
 			if err != nil {
-				return err
+				return xerrors.Errorf("failed to get exiting volume: %w", err)
 			}
 			if volumes.Volumes == nil {
 				log.Info.Printf("Delete snapshot: %v", id)
 				_, err := r.deleteSnapshot(id)
 				if err != nil {
-					return err
+					return xerrors.Errorf("failed to delete snapshot: %w", err)
 				}
 			}
 		}

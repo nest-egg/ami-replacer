@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -9,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nest-egg/ami-replacer/log"
+	"golang.org/x/xerrors"
 )
 
 //AWSHomeDir get aws config directory.
@@ -21,7 +21,7 @@ var AWSHomeDir = func() string {
 //ParseRegion parses region.
 func ParseRegion(i string) (interface{}, error) {
 	if !IsValidRegion(i) {
-		return i, fmt.Errorf("'%s' is not a valid region", i)
+		return i, xerrors.New("not a valid region")
 	}
 	return i, nil
 }

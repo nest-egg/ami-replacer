@@ -6,6 +6,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/nest-egg/ami-replacer/apis"
+	"golang.org/x/xerrors"
 )
 
 func (r *Replacement) newestAMI(owner string, image string) (imageid string, err error) {
@@ -17,7 +18,7 @@ func (r *Replacement) newestAMI(owner string, image string) (imageid string, err
 			Values: []*string{aws.String(image)},
 		}}})
 	if err != nil {
-		return "", err
+		return "", xerrors.Errorf("failed to describe images: %w", err)
 	}
 
 	sort.Sort(apis.ImageSlice(output.Images))
@@ -33,7 +34,7 @@ func (r *Replacement) deleteSnapshot(snapshotid string) (result *ec2.DeleteSnaps
 	}
 	output, err := r.asg.Ec2Api.DeleteSnapshot(params)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to delete snapshot: %w", err)
 	}
 	return output, nil
 }
@@ -47,7 +48,7 @@ func (r *Replacement) searchUnusedSnapshot(ownerid string) (result *ec2.Describe
 	}
 	output, err := r.asg.Ec2Api.DescribeSnapshots(params)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to describe snapshots: %w", err)
 	}
 	return output, nil
 }
@@ -64,7 +65,7 @@ func (r *Replacement) volumeExists(snapshotid string) (result *ec2.DescribeVolum
 		}}}
 	output, err := r.asg.Ec2Api.DescribeVolumes(params)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to describe volumes: %w", err)
 	}
 	return output, nil
 }
@@ -81,7 +82,7 @@ func (r *Replacement) imageExists(snapshotid string) (result *ec2.DescribeImages
 		}}}
 	output, err := r.asg.Ec2Api.DescribeImages(params)
 	if err != nil {
-		return nil, err
+		return nil, xerrors.Errorf("failed to describe images: %w", err)
 	}
 	return output, nil
 }
