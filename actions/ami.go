@@ -5,7 +5,6 @@ import (
 	"sort"
 
 	"github.com/nest-egg/ami-replacer/apis"
-	"github.com/nest-egg/ami-replacer/log"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -72,7 +71,6 @@ func (r *Replacement) asgInfo(asgname string) (grp *autoscaling.Group, err error
 
 func (r *Replacement) deregisterAMI(c *config.Config) (*ec2.DeregisterImageOutput, error) {
 	gen := c.Generation
-
 	params := &ec2.DescribeImagesInput{
 		Owners: []*string{aws.String(c.Owner)},
 		Filters: []*ec2.Filter{{
@@ -101,7 +99,6 @@ func (r *Replacement) deregisterAMI(c *config.Config) (*ec2.DeregisterImageOutpu
 			images = append(images, m)
 		}
 		imageid := i.Images[j].ImageId
-		log.Logger.Infof("images to delete: %s", *imageid)
 		_, err := r.asg.Ec2Api.DeregisterImage(&ec2.DeregisterImageInput{
 			DryRun:  aws.Bool(dryrun),
 			ImageId: aws.String(*imageid),
