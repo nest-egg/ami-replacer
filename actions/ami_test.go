@@ -116,7 +116,7 @@ func TestAMI_deregisterAmi(t *testing.T) {
 			name:    "ok",
 			imageid: "ok",
 			owner:   "owner",
-			image:   "ok*",
+			image:   "testimage*",
 			gen:     2,
 		},
 		{

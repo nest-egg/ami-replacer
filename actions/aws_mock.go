@@ -301,7 +301,7 @@ func (ec *mockEC2iface) DescribeImages(params *ec2.DescribeImagesInput) (*ec2.De
 				},
 				{
 					CreationDate: aws.String("2017-01-01T00:00:01.000Z"),
-					Name:         aws.String("testimage2"),
+					Name:         aws.String("testimage3"),
 					ImageId:      aws.String("error"),
 				},
 			},
@@ -313,16 +313,19 @@ func (ec *mockEC2iface) DescribeImages(params *ec2.DescribeImagesInput) (*ec2.De
 					CreationDate: aws.String("2019-01-01T00:00:01.000Z"),
 					Name:         aws.String("testimage"),
 					ImageId:      aws.String("ami-00000000000000001"),
+					OwnerId:      aws.String("owner"),
 				},
 				{
 					CreationDate: aws.String("2018-01-01T00:00:01.000Z"),
 					Name:         aws.String("testimage2"),
 					ImageId:      aws.String("ami-00000000000000002"),
+					OwnerId:      aws.String("owner"),
 				},
 				{
 					CreationDate: aws.String("2017-01-01T00:00:01.000Z"),
-					Name:         aws.String("testimage2"),
+					Name:         aws.String("testimage3"),
 					ImageId:      aws.String("ami-00000000000000003"),
+					OwnerId:      aws.String("owner"),
 				},
 			},
 		}
