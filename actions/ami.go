@@ -101,7 +101,7 @@ func (r *Replacement) deregisterAMI(c *config.Config) (*ec2.DeregisterImageOutpu
 			images = append(images, m)
 		}
 		imageid := i.Images[j].ImageId
-		log.Info.Printf("images to delete: %v", *imageid)
+		log.Logger.Infof("images to delete: %s", *imageid)
 		_, err := r.asg.Ec2Api.DeregisterImage(&ec2.DeregisterImageInput{
 			DryRun:  aws.Bool(dryrun),
 			ImageId: aws.String(*imageid),

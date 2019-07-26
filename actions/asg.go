@@ -19,7 +19,7 @@ func (r *Replacement) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOu
 	asgname := clst.asg.name
 	num := clst.asg.size
 
-	log.Info.Printf("stop instance %v", instances)
+	log.Logger.Infof("stop instance %v", instances)
 
 	params := &ec2.StopInstancesInput{
 		DryRun:      aws.Bool(dryrun),
@@ -39,24 +39,24 @@ func (r *Replacement) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOu
 			return xerrors.Errorf("failed to describer instances: %w", err)
 		}
 		for idx, res := range resp.Reservations {
-			log.Debug.Println("Reservation Id: ", *res.ReservationId, " Num Instances: ", len(res.Instances))
+			log.Logger.Debugf("Reservation Id: %s", *res.ReservationId, " Num Instances: %s", len(res.Instances))
 			for _, inst := range resp.Reservations[idx].Instances {
 				code := inst.State.Code
-				log.Info.Printf("current status code...: %d", *code)
+				log.Logger.Infof("current status code...: %d", *code)
 				//0 (pending), 16 (running), 32 (shut-ting-down), 48 (terminated), 64 (stopping), and 80 (stopped).
 				if *code != int64(48) && *code != int64(80) {
 					return xerrors.New("There are still running instances")
 				}
 			}
 		}
-		log.Info.Println("Successfully terminated all unused instance.")
+		log.Logger.Info("Successfully terminated all unused instance.")
 		return nil
 	}
 
 	b := newExponentialBackOff()
 	bf := backoff.WithMaxRetries(b, 10)
 	if err := backoff.Retry(describe, bf); err != nil {
-		return nil, xerrors.New("retry error")
+		return nil, xerrors.New("retry has timed out")
 	}
 
 	counter := func() error {
@@ -66,12 +66,12 @@ func (r *Replacement) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOu
 		}
 		size := len(asginfo.Instances)
 		if size != num {
-			return xerrors.New("still waiting for new instances")
+			return xerrors.New("still waiting...")
 		}
 		return nil
 	}
 	if err := backoff.Retry(counter, bf); err != nil {
-		return nil, xerrors.New("retry error")
+		return nil, xerrors.New("retry has timed out")
 	}
 
 	return result, nil
@@ -95,17 +95,17 @@ func (r *Replacement) swapInstance(clst *cluster) error {
 	var emptyInstanceCount int
 	asgname := clst.asg.name
 
-	log.Info.Printf("replace ECS cluster instances with newest AMI: %s", clst.asg.newesetami)
+	log.Logger.Infof("replace ECS cluster instances with newest AMI: %s", clst.asg.newesetami)
 	if err := r.deploy.FSM.Event("start"); err != nil {
 		return xerrors.Errorf("failed to enter state: %w", err)
 	}
 	for _, inst := range instances {
 		_, err := r.clearScaleinProtection(inst.InstanceID, asgname)
 		if err != nil {
-			return xerrors.Errorf("failed to clear scale in protection: %w", err)
+			return xerrors.Errorf("failed to disable scale in protection: %w", err)
 		}
 		if inst.RunningTasks == 0 && inst.PendingTasks == 0 {
-			log.Info.Printf("empty ECS instances with newest AMI is detected: %s", inst.InstanceID)
+			log.Logger.Infof("empty ECS instances with newest AMI is detected: %s", inst.InstanceID)
 			emptyInstanceCount++
 		}
 	}
@@ -118,9 +118,9 @@ func (r *Replacement) swapInstance(clst *cluster) error {
 		_, errc := r.swap(inst, &wg, clst.asg.newesetami, clst.asg.name)
 		err := <-errc
 		if err != nil {
-			return xerrors.Errorf("failed to replace instances", err)
+			return xerrors.Errorf("failed to replace instances: %w", err)
 		}
-		log.Info.Println("successfully replaced ECS instances")
+		log.Logger.Info("successfully replaced instances!")
 	}
 	wg.Wait()
 	if err := r.deploy.FSM.Event("finish"); err != nil {
@@ -135,9 +135,9 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, imageid string,
 	var stoptarget []string
 	go func() {
 		{
-			log.Info.Printf("start replacing instances: %v", inst)
+			log.Logger.Infof("start replacing instances: %v", inst)
 			if inst.RunningTasks != 0 && inst.ImageID != imageid {
-				log.Info.Printf("ECS instances %s is running obsolete AMI", inst.InstanceID)
+				log.Logger.Infof("ECS instances %s is running obsolete AMI", inst.InstanceID)
 				_, err := r.drainInstance(inst)
 				if err != nil {
 					errc <- xerrors.Errorf("cannnot drain instance: %w", err)
@@ -151,7 +151,7 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, imageid string,
 				}
 				clustername := inst.Cluster
 				if err := r.waitTasksRunning(clustername, asgname); err != nil {
-					errc <- xerrors.Errorf("failed to execute waiter: %w", err)
+					errc <- xerrors.Errorf("waiter has returned error: %w", err)
 				}
 				output, err := r.replaceUnusedInstance(c)
 				_ = output
@@ -159,13 +159,13 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, imageid string,
 					errc <- xerrors.Errorf("failed to replace unused instance: %w", err)
 				}
 				if err := r.waitTasksRunning(clustername, asgname); err != nil {
-					errc <- xerrors.Errorf("failed to execute waiter: %w", err)
+					errc <- xerrors.Errorf("waiter has returned error: %w", err)
 				}
-				log.Info.Printf("target ECS instances successfully stopped")
+				log.Logger.Infof("target ECS instances successfully stopped")
 			} else if inst.RunningTasks != 0 && inst.ImageID == imageid {
-				log.Info.Printf("target ECS instances %s already runs newest AMI", inst.InstanceID)
+				log.Logger.Infof("target ECS instances %s already runs newest AMI", inst.InstanceID)
 			} else if inst.RunningTasks == 0 {
-				log.Info.Printf("nothing to do. empty instance with new imageid: %v", inst.InstanceID)
+				log.Logger.Infof("nothing to do. empty instance with the newest ami: %v", inst.InstanceID)
 			}
 			out <- "done!"
 			close(errc)
@@ -218,7 +218,7 @@ func (r *Replacement) waitTasksRunning(clustername string, asgname string) error
 func (r *Replacement) updateASG(asgname string, num int) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
 
 	desired := int64(num)
-	log.Info.Printf("update asg %s size to %d", asgname, num)
+	log.Logger.Infof("update asg %s size to %d", asgname, num)
 	params := &autoscaling.UpdateAutoScalingGroupInput{
 		AutoScalingGroupName:             aws.String(asgname),
 		DesiredCapacity:                  aws.Int64(desired),
@@ -302,17 +302,17 @@ func (r *Replacement) optimizeClusterSize(clst *cluster, num int) error {
 			return xerrors.Errorf("failed to get cluster status: %w", err)
 		}
 		for _, st := range status.ContainerInstances {
-			log.Debug.Printf("current cluster size: %d", clst.size)
-			log.Debug.Printf("dst size: %d", num)
+			log.Logger.Debugf("current cluster size: %d", clst.size)
+			log.Logger.Debugf("dst size: %d", num)
 			if *st.Status == "DRAINING" && len(status.ContainerInstances) > num {
 				offset++
 			}
 		}
 		if len(status.ContainerInstances)-offset != num {
-			log.Info.Printf("ECS Cluster is still in pending status")
-			log.Debug.Printf("current ecs cluster size: %d", clst.size)
-			log.Debug.Printf("current offset: %d", offset)
-			log.Debug.Printf("num of container instances: %d", len(status.ContainerInstances))
+			log.Logger.Infof("ECS Cluster is still in pending status")
+			log.Logger.Debugf("current ecs cluster size: %d", clst.size)
+			log.Logger.Debugf("current offset: %d", offset)
+			log.Logger.Debugf("num of container instances: %d", len(status.ContainerInstances))
 			return xerrors.New("Scaling operation has timed out")
 		}
 		return nil
@@ -393,7 +393,7 @@ func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 				}
 				ecsInstance = append(ecsInstance, *instance)
 			} else if imageid == clst.asg.newesetami {
-				log.Info.Printf("instance  %v has been already running with newest images", *st.Ec2InstanceId)
+				log.Logger.Infof("instance  %v has been already running with newest images", *st.Ec2InstanceId)
 			}
 		}
 	}

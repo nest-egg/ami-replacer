@@ -31,7 +31,6 @@ func NewDeploy(to string) *Deploy {
 		"closed",
 		fsm.Events{
 			{Name: "start", Src: []string{"closed"}, Dst: "running"},
-			{Name: "running", Src: []string{"running"}, Dst: "running"},
 			{Name: "finish", Src: []string{"running"}, Dst: "closed"},
 		},
 		fsm.Callbacks{
@@ -42,5 +41,5 @@ func NewDeploy(to string) *Deploy {
 }
 
 func (d *Deploy) enterState(e *fsm.Event) {
-	log.Debug.Printf("The State changed %s to %s\n", d.To, e.Dst)
+	log.Logger.Infof("the state changed %s to %s\n", d.To, e.Dst)
 }

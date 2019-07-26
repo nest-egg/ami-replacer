@@ -47,8 +47,8 @@ func (r *Replacement) ReplaceInstance(c *config.Config) error {
 	state = r.deploy.FSM.Current()
 
 	if len(clst.freeInstances) == 0 && state == "closed" {
-		log.Info.Printf("cluster %v has no empty ECS instances", clst.name)
-		log.Info.Printf("extend the size of the cluster.. current size: %d", clst.size)
+		log.Logger.Infof("cluster %v has no empty ECS instances", clst.name)
+		log.Logger.Infof("extend the size of the cluster.. current size: %d", clst.size)
 		if clst.size+1 > defaultClusterSize {
 			if err := r.optimizeClusterSize(clst, clst.size+1); err != nil {
 				return xerrors.Errorf("failed to increase asg size: %w", err)
@@ -78,7 +78,7 @@ func (r *Replacement) ReplaceInstance(c *config.Config) error {
 		if err := r.optimizeClusterSize(clst, defaultClusterSize); err != nil {
 			return xerrors.Errorf("failed to decrease asg size: %w", err)
 		}
-		log.Info.Println("successfully restored the size of the cluster")
+		log.Logger.Info("successfully restored the size of the cluster")
 
 	}
 	return nil
@@ -94,7 +94,7 @@ func (r *Replacement) RemoveSnapShots(c *config.Config) error {
 	}
 	sort.Sort(apis.VolumeSlice(result.Snapshots))
 	length := apis.VolumeSlice(result.Snapshots).Len()
-	log.Info.Printf("%d snapshots found", length)
+	log.Logger.Infof("%d snapshots found", length)
 	for i := 0; i < length; i++ {
 		id := *result.Snapshots[i].SnapshotId
 		snaps, err := r.imageExists(id)
@@ -107,7 +107,7 @@ func (r *Replacement) RemoveSnapShots(c *config.Config) error {
 				return xerrors.Errorf("failed to get exiting volume: %w", err)
 			}
 			if volumes.Volumes == nil {
-				log.Info.Printf("Delete snapshot: %v", id)
+				log.Logger.Infof("Delete snapshot: %v", id)
 				_, err := r.deleteSnapshot(id)
 				if err != nil {
 					return xerrors.Errorf("failed to delete snapshot: %w", err)

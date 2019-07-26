@@ -7,7 +7,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/nest-egg/ami-replacer/log"
 	"golang.org/x/xerrors"
 )
 
@@ -28,7 +27,6 @@ func ParseRegion(i string) (interface{}, error) {
 
 //IsValidRegion validates given region
 func IsValidRegion(i string) bool {
-	log.Debug.Println(i)
 	reg, _ := regexp.Compile("^(us|eu|ap|sa|ca)\\-\\w+\\-\\d+$")
 	return reg.MatchString(i)
 }

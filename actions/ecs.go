@@ -165,7 +165,7 @@ func (r *Replacement) drainInstance(inst AsgInstance) (*ecs.UpdateContainerInsta
 		return nil, xerrors.New("waiter has timed out")
 	}
 
-	log.Info.Printf("ECS instances %s has been successfully drained", inst.InstanceID)
+	log.Logger.Infof("ECS instances %s has been successfully drained", inst.InstanceID)
 	return result, nil
 }
 

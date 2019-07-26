@@ -126,7 +126,6 @@ func init() {
 	}
 	region = "ap-northeast-1"
 	profile = "admin"
-	log.SetLevel("info")
 }
 
 func main() {
@@ -135,31 +134,29 @@ func main() {
 
 func doMain(args []string) {
 	app := cli.NewApp()
-	app.Name = "finbeeami"
-	app.Usage = "remove unused ami"
-	app.Version = "0.0.1"
+	app.Name = "ami-replacer"
+	app.Usage = "replace ecs instance and amis"
+	app.Version = "0.1"
 	app.Commands = cmds
 	app.Action = noArgs
 
 	err := app.Run(args)
 	if err != nil {
-		log.Fatalf("failed to excute cmd: %+v", err)
+		log.Logger.Fatalf("failed to run cmd: %+v", err)
 	}
 }
 
 func noArgs(context *cli.Context) error {
 
 	cli.ShowAppHelp(context)
-	return cli.NewExitError("no commands provided", 2)
+	return cli.NewExitError("no args provided", 2)
 }
 
 func removeAMIs(ctx *cli.Context) error {
 	conf := config.SetConfig(ctx)
-	if conf.Debug {
-		log.SetLevel("debug")
-	}
+	log.InitLogger(conf.Debug)
 
-	log.Info.Printf("ami prefix to delete       : %+v\n", conf.Image)
+	log.Logger.Infof("ami prefix to delete: %s\n", conf.Image)
 
 	_, err := config.ParseRegion(region)
 	if err != nil {
@@ -179,15 +176,14 @@ func removeAMIs(ctx *cli.Context) error {
 	if err := r.RemoveAMIs(conf); err != nil {
 		return xerrors.Errorf("failed to remove AMIs: %w", err)
 	}
-	log.Info.Println("Successfully removed all unused AMIs")
+	log.Logger.Info("Successfully removed all unused AMIs")
 	return nil
 }
 
 func removeSnapshots(ctx *cli.Context) error {
 	conf := config.SetConfig(ctx)
-	if conf.Debug {
-		log.SetLevel("debug")
-	}
+	log.InitLogger(conf.Debug)
+
 	r := makeReplacer(
 		context.Background(),
 		region,
@@ -198,15 +194,13 @@ func removeSnapshots(ctx *cli.Context) error {
 	if err != nil {
 		return xerrors.Errorf("failed to remove snapshots: %w", err)
 	}
-	log.Info.Println("Successfully removed all unused snapshots")
+	log.Logger.Info("Successfully removed all unused snapshots")
 	return nil
 }
 
 func replaceInstances(ctx *cli.Context) error {
 	conf := config.SetConfig(ctx)
-	if conf.Debug {
-		log.SetLevel("debug")
-	}
+	log.InitLogger(conf.Debug)
 
 	_, err := config.ParseRegion(region)
 	if err != nil {
