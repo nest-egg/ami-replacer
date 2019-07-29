@@ -39,7 +39,7 @@ func (r *Replacement) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOu
 			return xerrors.Errorf("failed to describer instances: %w", err)
 		}
 		for idx, res := range resp.Reservations {
-			log.Logger.Debugf("Reservation Id: %s", *res.ReservationId, " Num Instances: %s", len(res.Instances))
+			log.Logger.Debugf("Reservation Id: %s  Num Instances: %s", *res.ReservationId, len(res.Instances))
 			for _, inst := range resp.Reservations[idx].Instances {
 				code := inst.State.Code
 				log.Logger.Infof("current status code...: %d", *code)
@@ -65,6 +65,8 @@ func (r *Replacement) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOu
 			return xerrors.Errorf("failed to get asginfo: %w", err)
 		}
 		size := len(asginfo.Instances)
+		log.Logger.Debugf("asg size= %d", size)
+		log.Logger.Debugf("ecs cluster size= %d", num)
 		if size != num {
 			return xerrors.New("still waiting...")
 		}
@@ -95,7 +97,7 @@ func (r *Replacement) swapInstance(clst *cluster) error {
 	var emptyInstanceCount int
 	asgname := clst.asg.name
 
-	log.Logger.Infof("replace ECS cluster instances with newest AMI: %s", clst.asg.newesetami)
+	log.Logger.Infof("replace ECS cluster instances with newest AMI: %s", clst.asg.newestami)
 	if err := r.deploy.FSM.Event("start"); err != nil {
 		return xerrors.Errorf("failed to enter state: %w", err)
 	}
@@ -115,7 +117,7 @@ func (r *Replacement) swapInstance(clst *cluster) error {
 
 	for _, inst := range instances {
 		wg.Add(1)
-		_, errc := r.swap(inst, &wg, clst.asg.newesetami, clst.asg.name)
+		_, errc := r.swap(inst, &wg, clst.asg)
 		err := <-errc
 		if err != nil {
 			return xerrors.Errorf("failed to replace instances: %w", err)
@@ -129,14 +131,14 @@ func (r *Replacement) swapInstance(clst *cluster) error {
 	return nil
 }
 
-func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, imageid string, asgname string) (<-chan string, <-chan error) {
+func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, asg asg) (<-chan string, <-chan error) {
 	out := make(chan string, 1)
 	errc := make(chan error, 1)
 	var stoptarget []string
 	go func() {
 		{
 			log.Logger.Infof("start replacing instances: %v", inst)
-			if inst.RunningTasks != 0 && inst.ImageID != imageid {
+			if inst.RunningTasks != 0 && inst.ImageID != asg.newestami {
 				log.Logger.Infof("ECS instances %s is running obsolete AMI", inst.InstanceID)
 				_, err := r.drainInstance(inst)
 				if err != nil {
@@ -145,12 +147,10 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, imageid string,
 				stoptarget = append(stoptarget, inst.InstanceID)
 				c := &cluster{
 					unusedInstances: stoptarget,
-					asg: asg{
-						name: asgname,
-					},
+					asg:             asg,
 				}
 				clustername := inst.Cluster
-				if err := r.waitTasksRunning(clustername, asgname); err != nil {
+				if err := r.waitTasksRunning(clustername, asg.name); err != nil {
 					errc <- xerrors.Errorf("waiter has returned error: %w", err)
 				}
 				output, err := r.replaceUnusedInstance(c)
@@ -158,11 +158,11 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, imageid string,
 				if err != nil {
 					errc <- xerrors.Errorf("failed to replace unused instance: %w", err)
 				}
-				if err := r.waitTasksRunning(clustername, asgname); err != nil {
+				if err := r.waitTasksRunning(clustername, asg.name); err != nil {
 					errc <- xerrors.Errorf("waiter has returned error: %w", err)
 				}
 				log.Logger.Infof("target ECS instances successfully stopped")
-			} else if inst.RunningTasks != 0 && inst.ImageID == imageid {
+			} else if inst.RunningTasks != 0 && inst.ImageID == asg.newestami {
 				log.Logger.Infof("target ECS instances %s already runs newest AMI", inst.InstanceID)
 			} else if inst.RunningTasks == 0 {
 				log.Logger.Infof("nothing to do. empty instance with the newest ami: %v", inst.InstanceID)
@@ -340,7 +340,7 @@ func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 			if err != nil {
 				return nil, xerrors.Errorf("failed to get ami id: %w", err)
 			}
-			if imageid == clst.asg.newesetami {
+			if imageid == clst.asg.newestami {
 				count++
 			}
 		}
@@ -356,7 +356,7 @@ func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 			if err != nil {
 				return nil, xerrors.Errorf("failed to get ami id: %w", err)
 			}
-			if imageid == clst.asg.newesetami {
+			if imageid == clst.asg.newestami {
 				region, err := r.region(*st.Ec2InstanceId)
 				if err != nil {
 					return nil, xerrors.Errorf("cannnot get region: %w", err)
@@ -364,7 +364,7 @@ func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 				instance := &AsgInstance{
 					InstanceID:       *st.Ec2InstanceId,
 					InstanceArn:      *st.ContainerInstanceArn,
-					ImageID:          clst.asg.newesetami,
+					ImageID:          clst.asg.newestami,
 					Cluster:          clst.name,
 					RunningTasks:     0,
 					PendingTasks:     0,
@@ -381,7 +381,7 @@ func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 			if err != nil {
 				return nil, xerrors.Errorf("cannnot get ami id: %w", err)
 			}
-			if imageid != clst.asg.newesetami {
+			if imageid != clst.asg.newestami {
 				instance := &AsgInstance{
 					InstanceID:       *st.Ec2InstanceId,
 					InstanceArn:      *st.ContainerInstanceArn,
@@ -392,7 +392,7 @@ func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 					AvailabilityZone: region,
 				}
 				ecsInstance = append(ecsInstance, *instance)
-			} else if imageid == clst.asg.newesetami {
+			} else if imageid == clst.asg.newestami {
 				log.Logger.Infof("instance  %v has been already running with newest images", *st.Ec2InstanceId)
 			}
 		}
@@ -434,7 +434,7 @@ func (r *Replacement) freeInstance(clst *cluster) ([]AsgInstance, error) {
 			if err != nil {
 				return nil, xerrors.Errorf("failed to get ami id: %w", err)
 			}
-			if imageid == clst.asg.newesetami {
+			if imageid == clst.asg.newestami {
 				region, err := r.region(*st.Ec2InstanceId)
 				if err != nil {
 					return nil, xerrors.Errorf("cannnot get region: %w", err)
@@ -442,7 +442,7 @@ func (r *Replacement) freeInstance(clst *cluster) ([]AsgInstance, error) {
 				instance := &AsgInstance{
 					InstanceID:       *st.Ec2InstanceId,
 					InstanceArn:      *st.ContainerInstanceArn,
-					ImageID:          clst.asg.newesetami,
+					ImageID:          clst.asg.newestami,
 					Cluster:          clst.name,
 					RunningTasks:     0,
 					PendingTasks:     0,

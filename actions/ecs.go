@@ -20,9 +20,9 @@ type cluster struct {
 }
 
 type asg struct {
-	name       string
-	size       int
-	newesetami string
+	name      string
+	size      int
+	newestami string
 }
 
 func (r *Replacement) setClusterStatus(c *config.Config) (*cluster, error) {
@@ -38,6 +38,10 @@ func (r *Replacement) setClusterStatus(c *config.Config) (*cluster, error) {
 	}
 	num := len(asginfo.Instances)
 	clusterSize := len(asginfo.Instances)
+	maxnum := int(*asginfo.MaxSize)
+	if maxnum <= num+1 {
+		return nil, xerrors.New("Max size of asg should be set to at least current size +1")
+	}
 
 	clst := &cluster{
 		name: c.Clustername,
@@ -73,6 +77,7 @@ func (r *Replacement) refreshClusterStatus(clst *cluster) (*cluster, error) {
 		return nil, xerrors.Errorf("failed to get asg info: %w", err)
 	}
 	clst.size = len(asginfo.Instances)
+	clst.asg.size = len(asginfo.Instances)
 
 	clst.ecsInstance, err = r.ecsInstance(clst)
 	if err != nil {
