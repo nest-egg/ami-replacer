@@ -79,17 +79,6 @@ func (r *Replacer) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOutpu
 	return result, nil
 }
 
-func (r *Replacer) region(instancid string) (region string, err error) {
-	params := &ec2.DescribeInstancesInput{
-		InstanceIds: []*string{
-			aws.String(instancid),
-		},
-	}
-	result, err := r.asg.Ec2Api.DescribeInstances(params)
-	region = *result.Reservations[0].Instances[0].Placement.AvailabilityZone
-	return region, nil
-}
-
 func (r *Replacer) swapInstance(clst *cluster) error {
 
 	instances := clst.ecsInstance
@@ -98,7 +87,7 @@ func (r *Replacer) swapInstance(clst *cluster) error {
 	asgname := clst.asg.name
 
 	log.Logger.Infof("replace ECS cluster instances with newest AMI: %s", clst.asg.newestami)
-	if err := r.deploy.FSM.Event("Start"); err != nil {
+	if err := r.deploy.FSM.Event("start"); err != nil {
 		return xerrors.Errorf("Failed to enter state: %w", err)
 	}
 	for _, inst := range instances {
@@ -125,8 +114,8 @@ func (r *Replacer) swapInstance(clst *cluster) error {
 		log.Logger.Info("Successfully replaced instances!")
 	}
 	wg.Wait()
-	if err := r.deploy.FSM.Event("Finish"); err != nil {
-		return xerrors.Errorf("Failed to enter state", err)
+	if err := r.deploy.FSM.Event("finish"); err != nil {
+		return xerrors.Errorf("Failed to enter state: %w", err)
 	}
 	return nil
 }
@@ -357,39 +346,30 @@ func (r *Replacer) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 				return nil, xerrors.Errorf("Failed to get ami id: %w", err)
 			}
 			if imageid == clst.asg.newestami {
-				region, err := r.region(*st.Ec2InstanceId)
-				if err != nil {
-					return nil, xerrors.Errorf("Cannnot get region: %w", err)
-				}
+
 				instance := &AsgInstance{
-					InstanceID:       *st.Ec2InstanceId,
-					InstanceArn:      *st.ContainerInstanceArn,
-					ImageID:          clst.asg.newestami,
-					Cluster:          clst.name,
-					RunningTasks:     0,
-					PendingTasks:     0,
-					AvailabilityZone: region,
+					InstanceID:   *st.Ec2InstanceId,
+					InstanceArn:  *st.ContainerInstanceArn,
+					ImageID:      clst.asg.newestami,
+					Cluster:      clst.name,
+					RunningTasks: 0,
+					PendingTasks: 0,
 				}
 				ecsInstance = append(ecsInstance, *instance)
 			}
 		} else if *st.RunningTasksCount == int64(1) && *st.Status == "ACTIVE" {
-			region, err := r.region(*st.Ec2InstanceId)
-			if err != nil {
-				return nil, xerrors.Errorf("Cannnot get region: %w", err)
-			}
 			imageid, err := r.Ami(*st.Ec2InstanceId)
 			if err != nil {
 				return nil, xerrors.Errorf("Cannnot get ami id: %w", err)
 			}
 			if imageid != clst.asg.newestami {
 				instance := &AsgInstance{
-					InstanceID:       *st.Ec2InstanceId,
-					InstanceArn:      *st.ContainerInstanceArn,
-					ImageID:          imageid,
-					RunningTasks:     1,
-					PendingTasks:     0,
-					Cluster:          clst.name,
-					AvailabilityZone: region,
+					InstanceID:   *st.Ec2InstanceId,
+					InstanceArn:  *st.ContainerInstanceArn,
+					ImageID:      imageid,
+					RunningTasks: 1,
+					PendingTasks: 0,
+					Cluster:      clst.name,
 				}
 				ecsInstance = append(ecsInstance, *instance)
 			} else if imageid == clst.asg.newestami {
@@ -435,18 +415,13 @@ func (r *Replacer) freeInstance(clst *cluster) ([]AsgInstance, error) {
 				return nil, xerrors.Errorf("Failed to get ami id: %w", err)
 			}
 			if imageid == clst.asg.newestami {
-				region, err := r.region(*st.Ec2InstanceId)
-				if err != nil {
-					return nil, xerrors.Errorf("Cannnot get region: %w", err)
-				}
 				instance := &AsgInstance{
-					InstanceID:       *st.Ec2InstanceId,
-					InstanceArn:      *st.ContainerInstanceArn,
-					ImageID:          clst.asg.newestami,
-					Cluster:          clst.name,
-					RunningTasks:     0,
-					PendingTasks:     0,
-					AvailabilityZone: region,
+					InstanceID:   *st.Ec2InstanceId,
+					InstanceArn:  *st.ContainerInstanceArn,
+					ImageID:      clst.asg.newestami,
+					Cluster:      clst.name,
+					RunningTasks: 0,
+					PendingTasks: 0,
 				}
 				freeInstance = append(freeInstance, *instance)
 			}

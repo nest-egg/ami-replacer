@@ -39,7 +39,7 @@ func (r *Replacer) setClusterStatus(c *config.Config) (*cluster, error) {
 	num := len(asginfo.Instances)
 	clusterSize := len(asginfo.Instances)
 	maxnum := int(*asginfo.MaxSize)
-	if maxnum <= num+1 {
+	if maxnum < num+1 {
 		return nil, xerrors.New("Max size of asg should be set to at least current size +1")
 	}
 

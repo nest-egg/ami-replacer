@@ -64,7 +64,7 @@ func (r *Replacer) asgInfo(asgname string) (grp *autoscaling.Group, err error) {
 	}
 	asgGroup := output.AutoScalingGroups[0]
 	if len(asgGroup.Instances) == 0 {
-		return nil, xerrors.New("No instances in asg")
+		return nil, xerrors.New("No instances found in asg")
 	}
 	return asgGroup, nil
 }
