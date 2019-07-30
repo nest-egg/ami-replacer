@@ -6,7 +6,7 @@ import (
 )
 
 //Replacement defines replacement task.
-type Replacement struct {
+type Replacer struct {
 	ctx         context.Context
 	deploy      *fsm.Deploy
 	asg         *AutoScaling
@@ -34,7 +34,7 @@ func NewReplacer(
 
 	asgroup := newAsg(region, profile)
 	deploy := fsm.NewDeploy("start")
-	return &Replacement{
+	return &Replacer{
 		ctx:    ctx,
 		asg:    asgroup,
 		deploy: deploy,

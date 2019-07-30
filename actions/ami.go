@@ -15,7 +15,7 @@ import (
 )
 
 //Ami extracts imageID of current ASG from Launch Template.
-func (r *Replacement) Ami(id string) (string, error) {
+func (r *Replacer) Ami(id string) (string, error) {
 
 	params := &autoscaling.DescribeAutoScalingInstancesInput{
 		InstanceIds: []*string{
@@ -24,7 +24,7 @@ func (r *Replacement) Ami(id string) (string, error) {
 	}
 	output, err := r.asg.AsgAPI.DescribeAutoScalingInstances(params)
 	if err != nil {
-		return "", xerrors.Errorf("failed to describe asg instances: %w", err)
+		return "", xerrors.Errorf("Failed to describe asg instances: %w", err)
 	}
 
 	inst := output.AutoScalingInstances[0]
@@ -41,14 +41,14 @@ func (r *Replacement) Ami(id string) (string, error) {
 		},
 	})
 	if err != nil {
-		return "", xerrors.Errorf("failed to describe launch templates: %w", err)
+		return "", xerrors.Errorf("Failed to describe launch templates: %w", err)
 	}
 
 	amiid := *latest.LaunchTemplateVersions[0].LaunchTemplateData.ImageId
 	return amiid, nil
 }
 
-func (r *Replacement) asgInfo(asgname string) (grp *autoscaling.Group, err error) {
+func (r *Replacer) asgInfo(asgname string) (grp *autoscaling.Group, err error) {
 
 	params := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{
@@ -57,19 +57,19 @@ func (r *Replacement) asgInfo(asgname string) (grp *autoscaling.Group, err error
 	}
 	output, err := r.asg.AsgAPI.DescribeAutoScalingGroups(params)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to describe asg groups: %w", err)
+		return nil, xerrors.Errorf("Failed to describe asg groups: %w", err)
 	}
 	if len(output.AutoScalingGroups) == 0 {
-		return nil, xerrors.New("asg not found")
+		return nil, xerrors.New("Asg not found")
 	}
 	asgGroup := output.AutoScalingGroups[0]
 	if len(asgGroup.Instances) == 0 {
-		return nil, xerrors.New("no instances in asg")
+		return nil, xerrors.New("No instances in asg")
 	}
 	return asgGroup, nil
 }
 
-func (r *Replacement) deregisterAMI(c *config.Config) (*ec2.DeregisterImageOutput, error) {
+func (r *Replacer) deregisterAMI(c *config.Config) (*ec2.DeregisterImageOutput, error) {
 	gen := c.Generation
 	params := &ec2.DescribeImagesInput{
 		Owners: []*string{aws.String(c.Owner)},
@@ -79,13 +79,13 @@ func (r *Replacement) deregisterAMI(c *config.Config) (*ec2.DeregisterImageOutpu
 		}}}
 	i, err := r.asg.Ec2Api.DescribeImages(params)
 	if err != nil {
-		return nil, xerrors.Errorf("failed to describe images: %w", err)
+		return nil, xerrors.Errorf("Failed to describe images: %w", err)
 	}
 
 	sort.Sort(apis.ImageSlice(i.Images))
 	len := apis.ImageSlice(i.Images).Len()
 	if len <= gen {
-		return nil, xerrors.New("no outdated images")
+		return nil, xerrors.New("No outdated images")
 	}
 	images := make([]map[string]interface{}, 0, len)
 	for j := gen - 1; j < len; j++ {
@@ -104,7 +104,7 @@ func (r *Replacement) deregisterAMI(c *config.Config) (*ec2.DeregisterImageOutpu
 			ImageId: aws.String(*imageid),
 		})
 		if err != nil {
-			return nil, xerrors.Errorf("failed to deregister image: %w", err)
+			return nil, xerrors.Errorf("Failed to deregister image: %w", err)
 		}
 	}
 	return nil, nil

@@ -36,7 +36,7 @@ func TestSnapshot_GetNewestAMI(t *testing.T) {
 			output, err := mockreplacer.newestAMI(tc.owner, tc.image)
 			_ = output
 			if err == nil && tc.shouldErr {
-				t.Errorf("should raise error: %v", err)
+				t.Errorf("Should raise error: %v", err)
 			}
 
 		})
