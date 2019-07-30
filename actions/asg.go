@@ -13,7 +13,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
-func (r *Replacement) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOutput, error) {
+func (r *Replacer) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOutput, error) {
 
 	instances := clst.unusedInstances
 	asgname := clst.asg.name
@@ -79,7 +79,7 @@ func (r *Replacement) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOu
 	return result, nil
 }
 
-func (r *Replacement) region(instancid string) (region string, err error) {
+func (r *Replacer) region(instancid string) (region string, err error) {
 	params := &ec2.DescribeInstancesInput{
 		InstanceIds: []*string{
 			aws.String(instancid),
@@ -90,7 +90,7 @@ func (r *Replacement) region(instancid string) (region string, err error) {
 	return region, nil
 }
 
-func (r *Replacement) swapInstance(clst *cluster) error {
+func (r *Replacer) swapInstance(clst *cluster) error {
 
 	instances := clst.ecsInstance
 	var wg sync.WaitGroup
@@ -131,7 +131,7 @@ func (r *Replacement) swapInstance(clst *cluster) error {
 	return nil
 }
 
-func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, asg asg) (<-chan string, <-chan error) {
+func (r *Replacer) swap(inst AsgInstance, wg *sync.WaitGroup, asg asg) (<-chan string, <-chan error) {
 	out := make(chan string, 1)
 	errc := make(chan error, 1)
 	var stoptarget []string
@@ -177,7 +177,7 @@ func (r *Replacement) swap(inst AsgInstance, wg *sync.WaitGroup, asg asg) (<-cha
 	return out, errc
 }
 
-func (r *Replacement) waitTasksRunning(clustername string, asgname string) error {
+func (r *Replacer) waitTasksRunning(clustername string, asgname string) error {
 
 	var taskscount int64
 	b := newShortExponentialBackOff()
@@ -215,7 +215,7 @@ func (r *Replacement) waitTasksRunning(clustername string, asgname string) error
 	return nil
 }
 
-func (r *Replacement) updateASG(asgname string, num int) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
+func (r *Replacer) updateASG(asgname string, num int) (*autoscaling.UpdateAutoScalingGroupOutput, error) {
 
 	desired := int64(num)
 	log.Logger.Infof("Update asg %s size to %d", asgname, num)
@@ -232,7 +232,7 @@ func (r *Replacement) updateASG(asgname string, num int) (*autoscaling.UpdateAut
 	return result, nil
 }
 
-func (r *Replacement) clearScaleinProtection(instanceid string, asgname string) (*autoscaling.SetInstanceProtectionOutput, error) {
+func (r *Replacer) clearScaleinProtection(instanceid string, asgname string) (*autoscaling.SetInstanceProtectionOutput, error) {
 
 	params := &autoscaling.SetInstanceProtectionInput{
 		AutoScalingGroupName: aws.String(asgname),
@@ -248,7 +248,7 @@ func (r *Replacement) clearScaleinProtection(instanceid string, asgname string) 
 	return result, nil
 }
 
-func (r *Replacement) setScaleinProtection(instanceid string, asgname string) (*autoscaling.SetInstanceProtectionOutput, error) {
+func (r *Replacer) setScaleinProtection(instanceid string, asgname string) (*autoscaling.SetInstanceProtectionOutput, error) {
 
 	params := &autoscaling.SetInstanceProtectionInput{
 		AutoScalingGroupName: aws.String(asgname),
@@ -264,7 +264,7 @@ func (r *Replacement) setScaleinProtection(instanceid string, asgname string) (*
 	return result, nil
 }
 
-func (r *Replacement) optimizeClusterSize(clst *cluster, num int) error {
+func (r *Replacer) optimizeClusterSize(clst *cluster, num int) error {
 
 	var offset int
 	asgname := clst.asg.name
@@ -323,7 +323,7 @@ func (r *Replacement) optimizeClusterSize(clst *cluster, num int) error {
 	return nil
 }
 
-func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
+func (r *Replacer) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 
 	var ecsInstance []AsgInstance
 	var count int
@@ -400,7 +400,7 @@ func (r *Replacement) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 	return ecsInstance, nil
 }
 
-func (r *Replacement) unusedInstance(clst *cluster) ([]string, error) {
+func (r *Replacer) unusedInstance(clst *cluster) ([]string, error) {
 
 	var unusedInstances []string
 	status, err := r.clusterStatus(clst.name)
@@ -421,7 +421,7 @@ func (r *Replacement) unusedInstance(clst *cluster) ([]string, error) {
 	return unusedInstances, nil
 }
 
-func (r *Replacement) freeInstance(clst *cluster) ([]AsgInstance, error) {
+func (r *Replacer) freeInstance(clst *cluster) ([]AsgInstance, error) {
 
 	var freeInstance []AsgInstance
 	status, err := r.clusterStatus(clst.name)

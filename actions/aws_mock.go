@@ -55,14 +55,14 @@ func newMockAsg(region string, profile string) (asg *mockAutoScaling, err error)
 func NewMockReplacer(
 	ctx context.Context,
 	region string,
-	profile string) *Replacement {
+	profile string) *Replacer {
 
 	asgroup := newAsg(region, profile)
 	deploy := fsm.NewDeploy("start")
 	asgroup.Ec2Api = &mockEC2iface{}
 	asgroup.AsgAPI = &mockASGiface{}
 	asgroup.EcsAPI = &mockECSiface{}
-	return &Replacement{
+	return &Replacer{
 		ctx:    ctx,
 		asg:    asgroup,
 		deploy: deploy,

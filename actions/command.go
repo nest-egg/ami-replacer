@@ -16,7 +16,7 @@ var (
 )
 
 //ReplaceInstance replace ecs cluster instances with newest amis.
-func (r *Replacement) ReplaceInstance(c *config.Config) error {
+func (r *Replacer) ReplaceInstance(c *config.Config) error {
 
 	dryrun = c.Dryrun
 
@@ -85,7 +85,7 @@ func (r *Replacement) ReplaceInstance(c *config.Config) error {
 }
 
 //RemoveSnapShots removes obsolete snapshots.
-func (r *Replacement) RemoveSnapShots(c *config.Config) error {
+func (r *Replacer) RemoveSnapShots(c *config.Config) error {
 
 	dryrun = c.Dryrun
 	result, err := r.searchUnusedSnapshot(c.Owner)
@@ -119,7 +119,7 @@ func (r *Replacement) RemoveSnapShots(c *config.Config) error {
 }
 
 //RemoveAMIs removes obsolete AMIs
-func (r *Replacement) RemoveAMIs(c *config.Config) error {
+func (r *Replacer) RemoveAMIs(c *config.Config) error {
 
 	dryrun = c.Dryrun
 	output, err := r.deregisterAMI(c)

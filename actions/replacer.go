@@ -5,7 +5,7 @@ import (
 	"github.com/nest-egg/ami-replacer/fsm"
 )
 
-//Replacement defines replacement task.
+//Replacer defines replacement task.
 type Replacer struct {
 	ctx         context.Context
 	deploy      *fsm.Deploy
@@ -30,7 +30,7 @@ type AsgInstance struct {
 func NewReplacer(
 	ctx context.Context,
 	region string,
-	profile string) *Replacement {
+	profile string) *Replacer {
 
 	asgroup := newAsg(region, profile)
 	deploy := fsm.NewDeploy("start")

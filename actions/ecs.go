@@ -25,7 +25,7 @@ type asg struct {
 	newestami string
 }
 
-func (r *Replacement) setClusterStatus(c *config.Config) (*cluster, error) {
+func (r *Replacer) setClusterStatus(c *config.Config) (*cluster, error) {
 
 	newestimage, err := r.newestAMI(c.Owner, c.Image)
 	if err != nil {
@@ -70,7 +70,7 @@ func (r *Replacement) setClusterStatus(c *config.Config) (*cluster, error) {
 	return clst, nil
 }
 
-func (r *Replacement) refreshClusterStatus(clst *cluster) (*cluster, error) {
+func (r *Replacer) refreshClusterStatus(clst *cluster) (*cluster, error) {
 
 	asginfo, err := r.asgInfo(clst.asg.name)
 	if err != nil {
@@ -96,7 +96,7 @@ func (r *Replacement) refreshClusterStatus(clst *cluster) (*cluster, error) {
 	return clst, nil
 }
 
-func (r *Replacement) clusterStatus(clustername string) (*ecs.DescribeContainerInstancesOutput, error) {
+func (r *Replacer) clusterStatus(clustername string) (*ecs.DescribeContainerInstancesOutput, error) {
 	arns, err := r.ecsInstanceArn(clustername)
 	if err != nil {
 		return nil, xerrors.Errorf("Cannnot get instance arn: %w", err)
@@ -108,7 +108,7 @@ func (r *Replacement) clusterStatus(clustername string) (*ecs.DescribeContainerI
 	return status, nil
 }
 
-func (r *Replacement) ecsInstanceArn(clustername string) (out []string, err error) {
+func (r *Replacer) ecsInstanceArn(clustername string) (out []string, err error) {
 	var arns []string
 	params := &ecs.ListContainerInstancesInput{
 		Cluster: aws.String(clustername),
@@ -123,7 +123,7 @@ func (r *Replacement) ecsInstanceArn(clustername string) (out []string, err erro
 	return arns, err
 }
 
-func (r *Replacement) ecsInstanceStatus(clustername string, instances []string) (out *ecs.DescribeContainerInstancesOutput, err error) {
+func (r *Replacer) ecsInstanceStatus(clustername string, instances []string) (out *ecs.DescribeContainerInstancesOutput, err error) {
 
 	params := &ecs.DescribeContainerInstancesInput{
 		Cluster:            aws.String(clustername),
@@ -136,7 +136,7 @@ func (r *Replacement) ecsInstanceStatus(clustername string, instances []string) 
 	return output, err
 }
 
-func (r *Replacement) drainInstance(inst AsgInstance) (*ecs.UpdateContainerInstancesStateOutput, error) {
+func (r *Replacer) drainInstance(inst AsgInstance) (*ecs.UpdateContainerInstancesStateOutput, error) {
 
 	params := &ecs.UpdateContainerInstancesStateInput{
 		Cluster: aws.String(inst.Cluster),
@@ -174,7 +174,7 @@ func (r *Replacement) drainInstance(inst AsgInstance) (*ecs.UpdateContainerInsta
 	return result, nil
 }
 
-func (r *Replacement) waitInstanceRunning(clst *cluster, num int) error {
+func (r *Replacer) waitInstanceRunning(clst *cluster, num int) error {
 
 	var count int
 	b := newExponentialBackOff()

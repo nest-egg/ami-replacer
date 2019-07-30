@@ -9,7 +9,7 @@ import (
 	"golang.org/x/xerrors"
 )
 
-func (r *Replacement) newestAMI(owner string, image string) (imageid string, err error) {
+func (r *Replacer) newestAMI(owner string, image string) (imageid string, err error) {
 
 	output, err := r.asg.Ec2Api.DescribeImages(&ec2.DescribeImagesInput{
 		Owners: []*string{aws.String(owner)},
@@ -26,7 +26,7 @@ func (r *Replacement) newestAMI(owner string, image string) (imageid string, err
 	return *newestimageid, nil
 }
 
-func (r *Replacement) deleteSnapshot(snapshotid string) (result *ec2.DeleteSnapshotOutput, err error) {
+func (r *Replacer) deleteSnapshot(snapshotid string) (result *ec2.DeleteSnapshotOutput, err error) {
 
 	params := &ec2.DeleteSnapshotInput{
 		DryRun:     aws.Bool(dryrun),
@@ -39,7 +39,7 @@ func (r *Replacement) deleteSnapshot(snapshotid string) (result *ec2.DeleteSnaps
 	return output, nil
 }
 
-func (r *Replacement) searchUnusedSnapshot(ownerid string) (result *ec2.DescribeSnapshotsOutput, err error) {
+func (r *Replacer) searchUnusedSnapshot(ownerid string) (result *ec2.DescribeSnapshotsOutput, err error) {
 
 	params := &ec2.DescribeSnapshotsInput{
 		OwnerIds: []*string{
@@ -53,7 +53,7 @@ func (r *Replacement) searchUnusedSnapshot(ownerid string) (result *ec2.Describe
 	return output, nil
 }
 
-func (r *Replacement) volumeExists(snapshotid string) (result *ec2.DescribeVolumesOutput, err error) {
+func (r *Replacer) volumeExists(snapshotid string) (result *ec2.DescribeVolumesOutput, err error) {
 
 	params := &ec2.DescribeVolumesInput{
 
@@ -70,7 +70,7 @@ func (r *Replacement) volumeExists(snapshotid string) (result *ec2.DescribeVolum
 	return output, nil
 }
 
-func (r *Replacement) imageExists(snapshotid string) (result *ec2.DescribeImagesOutput, err error) {
+func (r *Replacer) imageExists(snapshotid string) (result *ec2.DescribeImagesOutput, err error) {
 
 	params := &ec2.DescribeImagesInput{
 
