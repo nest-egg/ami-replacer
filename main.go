@@ -28,25 +28,26 @@ var (
 var makeReplacer = actions.NewReplacer
 
 func init() {
+	cli.VersionFlag = cli.BoolFlag{Name: "version, V"}
 	rmiFlags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "dry-run, d",
-			Usage: "do not actually perform any operation.",
+			Usage: "dry run",
 		},
 		cli.StringFlag{
-			Name:  "image",
+			Name:  "image, i",
 			Value: "other",
 			Usage: "image name",
 		},
 		cli.StringFlag{
-			Name:  "owner",
+			Name:  "owner, o",
 			Value: "admin",
-			Usage: "ami owner",
+			Usage: "owner of amis",
 		},
 		cli.IntFlag{
-			Name:  "gen",
+			Name:  "gen,g",
 			Value: 2,
-			Usage: "max gen",
+			Usage: "max generations to retain",
 		},
 		cli.BoolFlag{
 			Name:  "verbose,v",
@@ -57,12 +58,12 @@ func init() {
 	rmsFlags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "dry-run, d",
-			Usage: "do not actually perform any operation.",
+			Usage: "dry run",
 		},
 		cli.StringFlag{
 			Name:  "owner",
 			Value: "admin",
-			Usage: "ami owner",
+			Usage: "owner of amis",
 		},
 		cli.BoolFlag{
 			Name:  "verbose,v",
@@ -73,27 +74,27 @@ func init() {
 	rplFlags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "dry-run, d",
-			Usage: "do not actually perform any operation.",
+			Usage: "dry run",
 		},
 		cli.StringFlag{
-			Name:  "asgname",
+			Name:  "asgname,a",
 			Value: "asg",
-			Usage: "autoscaling group name",
+			Usage: "auto scaling group name",
 		},
 		cli.StringFlag{
-			Name:  "clustername",
+			Name:  "clustername,c",
 			Value: "admin",
 			Usage: "ecs cluster name",
 		},
 		cli.StringFlag{
-			Name:  "image",
+			Name:  "image,i",
 			Value: "other",
 			Usage: "image name",
 		},
 		cli.StringFlag{
-			Name:  "owner",
+			Name:  "owner,o",
 			Value: "admin",
-			Usage: "ami owner",
+			Usage: "owner of amis",
 		},
 		cli.BoolFlag{
 			Name:  "verbose,v",
@@ -142,25 +143,25 @@ func doMain(args []string) {
 
 	err := app.Run(args)
 	if err != nil {
-		log.Logger.Fatalf("failed to run cmd: %+v", err)
+		log.Logger.Fatalf("Failed to run cmd: %+v", err)
 	}
 }
 
 func noArgs(context *cli.Context) error {
 
 	cli.ShowAppHelp(context)
-	return cli.NewExitError("no args provided", 2)
+	return cli.NewExitError("No args provided", 2)
 }
 
 func removeAMIs(ctx *cli.Context) error {
 	conf := config.SetConfig(ctx)
 	log.InitLogger(conf.Debug)
 
-	log.Logger.Infof("ami prefix to delete: %s\n", conf.Image)
+	log.Logger.Infof("AMI prefix to delete: %s\n", conf.Image)
 
 	_, err := config.ParseRegion(region)
 	if err != nil {
-		return xerrors.Errorf("aws region is invalid!: %w", err)
+		return xerrors.Errorf("Invalid aws region: %w", err)
 	}
 
 	if !config.IsValidProfile(profile) {
@@ -174,7 +175,7 @@ func removeAMIs(ctx *cli.Context) error {
 	)
 
 	if err := r.RemoveAMIs(conf); err != nil {
-		return xerrors.Errorf("failed to remove AMIs: %w", err)
+		return xerrors.Errorf("Failed to remove AMIs: %w", err)
 	}
 	log.Logger.Info("Successfully removed all unused AMIs")
 	return nil
@@ -192,7 +193,7 @@ func removeSnapshots(ctx *cli.Context) error {
 
 	err := r.RemoveSnapShots(conf)
 	if err != nil {
-		return xerrors.Errorf("failed to remove snapshots: %w", err)
+		return xerrors.Errorf("Failed to remove snapshots: %w", err)
 	}
 	log.Logger.Info("Successfully removed all unused snapshots")
 	return nil
@@ -218,7 +219,7 @@ func replaceInstances(ctx *cli.Context) error {
 	)
 
 	if err := r.ReplaceInstance(conf); err != nil {
-		return xerrors.Errorf("failed to replace instance: %w", err)
+		return xerrors.Errorf("Failed to replace instance: %w", err)
 	}
 	return nil
 }
