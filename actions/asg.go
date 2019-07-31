@@ -120,7 +120,7 @@ func (r *Replacer) swapInstance(clst *cluster) error {
 	return nil
 }
 
-func (r *Replacer) swap(inst AsgInstance, wg *sync.WaitGroup, asg asg) (<-chan string, <-chan error) {
+func (r *Replacer) swap(inst Instance, wg *sync.WaitGroup, asg asg) (<-chan string, <-chan error) {
 	out := make(chan string, 1)
 	errc := make(chan error, 1)
 	var stoptarget []string
@@ -312,9 +312,9 @@ func (r *Replacer) optimizeClusterSize(clst *cluster, num int) error {
 	return nil
 }
 
-func (r *Replacer) ecsInstance(clst *cluster) ([]AsgInstance, error) {
+func (r *Replacer) ecsInstance(clst *cluster) ([]Instance, error) {
 
-	var ecsInstance []AsgInstance
+	var ecsInstance []Instance
 	var count int
 	var len int
 	status, err := r.clusterStatus(clst.name)
@@ -347,7 +347,7 @@ func (r *Replacer) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 			}
 			if imageid == clst.asg.newestami {
 
-				instance := &AsgInstance{
+				instance := &Instance{
 					InstanceID:   *st.Ec2InstanceId,
 					InstanceArn:  *st.ContainerInstanceArn,
 					ImageID:      clst.asg.newestami,
@@ -363,7 +363,7 @@ func (r *Replacer) ecsInstance(clst *cluster) ([]AsgInstance, error) {
 				return nil, xerrors.Errorf("Cannnot get ami id: %w", err)
 			}
 			if imageid != clst.asg.newestami {
-				instance := &AsgInstance{
+				instance := &Instance{
 					InstanceID:   *st.Ec2InstanceId,
 					InstanceArn:  *st.ContainerInstanceArn,
 					ImageID:      imageid,
@@ -401,9 +401,9 @@ func (r *Replacer) unusedInstance(clst *cluster) ([]string, error) {
 	return unusedInstances, nil
 }
 
-func (r *Replacer) freeInstance(clst *cluster) ([]AsgInstance, error) {
+func (r *Replacer) freeInstance(clst *cluster) ([]Instance, error) {
 
-	var freeInstance []AsgInstance
+	var freeInstance []Instance
 	status, err := r.clusterStatus(clst.name)
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to get cluster status: %w", err)
@@ -415,7 +415,7 @@ func (r *Replacer) freeInstance(clst *cluster) ([]AsgInstance, error) {
 				return nil, xerrors.Errorf("Failed to get ami id: %w", err)
 			}
 			if imageid == clst.asg.newestami {
-				instance := &AsgInstance{
+				instance := &Instance{
 					InstanceID:   *st.Ec2InstanceId,
 					InstanceArn:  *st.ContainerInstanceArn,
 					ImageID:      clst.asg.newestami,

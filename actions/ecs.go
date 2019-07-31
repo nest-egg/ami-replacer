@@ -12,9 +12,9 @@ import (
 
 type cluster struct {
 	name            string
-	ecsInstance     []AsgInstance
+	ecsInstance     []Instance
 	unusedInstances []string
-	freeInstances   []AsgInstance
+	freeInstances   []Instance
 	size            int
 	asg             asg
 }
@@ -136,7 +136,7 @@ func (r *Replacer) ecsInstanceStatus(clustername string, instances []string) (ou
 	return output, err
 }
 
-func (r *Replacer) drainInstance(inst AsgInstance) (*ecs.UpdateContainerInstancesStateOutput, error) {
+func (r *Replacer) drainInstance(inst Instance) (*ecs.UpdateContainerInstancesStateOutput, error) {
 
 	params := &ecs.UpdateContainerInstancesStateInput{
 		Cluster: aws.String(inst.Cluster),

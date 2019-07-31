@@ -7,23 +7,21 @@ import (
 
 //Replacer defines replacement task.
 type Replacer struct {
-	ctx         context.Context
-	deploy      *fsm.Deploy
-	asg         *AutoScaling
-	asginstance *AsgInstance
+	ctx      context.Context
+	deploy   *fsm.Deploy
+	asg      *AutoScaling
+	instance *Instance
 }
 
-//AsgInstance retains status of each asg instance.
-type AsgInstance struct {
-	InstanceID       string
-	InstanceArn      string
-	ImageID          string
-	RunningTasks     int
-	PendingTasks     int
-	Draining         bool
-	ScalinProtection bool
-	AvailabilityZone string
-	Cluster          string
+//Instance retains status of each asg instance.
+type Instance struct {
+	InstanceID   string
+	InstanceArn  string
+	ImageID      string
+	RunningTasks int
+	PendingTasks int
+	Draining     bool
+	Cluster      string
 }
 
 //NewReplacer genetate new replacer object.

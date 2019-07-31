@@ -36,9 +36,9 @@ type mockAutoScaling struct {
 type MockReplacement struct {
 	ctx context.Context
 	//api         *AutoScaling
-	deploy      *fsm.Deploy
-	asg         *mockAutoScaling
-	asginstance *AsgInstance
+	deploy   *fsm.Deploy
+	asg      *mockAutoScaling
+	instance *Instance
 }
 
 func newMockAsg(region string, profile string) (asg *mockAutoScaling, err error) {
