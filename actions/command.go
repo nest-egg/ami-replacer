@@ -74,7 +74,7 @@ func (r *Replacer) ReplaceInstance(c *config.Config) error {
 	state = r.deploy.FSM.Current()
 	if state != "closed" {
 		return fmt.Errorf("Cluster is not steady state")
-	} else if state == "Closed" {
+	} else if state == "closed" {
 		if err := r.optimizeClusterSize(clst, defaultClusterSize); err != nil {
 			return xerrors.Errorf("Failed to decrease asg size: %w", err)
 		}
@@ -88,15 +88,14 @@ func (r *Replacer) ReplaceInstance(c *config.Config) error {
 func (r *Replacer) RemoveSnapShots(c *config.Config) error {
 
 	dryrun = c.Dryrun
-	result, err := r.searchUnusedSnapshot(c.Owner)
+	result, err := r.searchSnapshot(c.Owner)
 	if err != nil {
 		return xerrors.Errorf("Failed to search unused instance: %w", err)
 	}
-	sort.Sort(apis.VolumeSlice(result.Snapshots))
-	length := apis.VolumeSlice(result.Snapshots).Len()
-	log.Logger.Infof("%d snapshots found", length)
+	sort.Sort(apis.VolumeSlice(result))
+	length := apis.VolumeSlice(result).Len()
 	for i := 0; i < length; i++ {
-		id := *result.Snapshots[i].SnapshotId
+		id := *result[i].SnapshotId
 		snaps, err := r.imageExists(id)
 		if err != nil {
 			return xerrors.Errorf("Failed to get existing image: %w", err)
@@ -104,9 +103,9 @@ func (r *Replacer) RemoveSnapShots(c *config.Config) error {
 		if snaps.Images == nil {
 			volumes, err := r.volumeExists(id)
 			if err != nil {
-				return xerrors.Errorf("Failed to get exiting volume: %w", err)
+				return xerrors.Errorf("Failed to get existing volume: %w", err)
 			}
-			if volumes.Volumes == nil {
+			if len(volumes) == 0 {
 				log.Logger.Infof("Delete snapshot: %v", id)
 				_, err := r.deleteSnapshot(id)
 				if err != nil {

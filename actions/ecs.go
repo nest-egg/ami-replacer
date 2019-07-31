@@ -36,9 +36,9 @@ func (r *Replacer) setClusterStatus(c *config.Config) (*cluster, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to get asg info: %w", err)
 	}
-	num := len(asginfo.Instances)
-	clusterSize := len(asginfo.Instances)
-	maxnum := int(*asginfo.MaxSize)
+	num := asgSize(asginfo)
+	clusterSize := asgSize(asginfo)
+	maxnum := int(*asginfo[0].MaxSize)
 	if maxnum < num+1 {
 		return nil, xerrors.New("Max size of asg should be set to at least current size +1")
 	}
@@ -76,8 +76,8 @@ func (r *Replacer) refreshClusterStatus(clst *cluster) (*cluster, error) {
 	if err != nil {
 		return nil, xerrors.Errorf("Failed to get asg info: %w", err)
 	}
-	clst.size = len(asginfo.Instances)
-	clst.asg.size = len(asginfo.Instances)
+	clst.size = asgSize(asginfo)
+	clst.asg.size = asgSize(asginfo)
 
 	clst.ecsInstance, err = r.ecsInstance(clst)
 	if err != nil {

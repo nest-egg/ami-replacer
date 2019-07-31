@@ -64,7 +64,7 @@ func (r *Replacer) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOutpu
 		if err != nil {
 			return xerrors.Errorf("Failed to get asginfo: %w", err)
 		}
-		size := len(asginfo.Instances)
+		size := asgSize(asginfo)
 		log.Logger.Debugf("ASG size= %d", size)
 		log.Logger.Debugf("ECS cluster size= %d", num)
 		if size != num {
@@ -77,6 +77,14 @@ func (r *Replacer) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOutpu
 	}
 
 	return result, nil
+}
+
+func asgSize(asginfo []*autoscaling.Group) int {
+	size := 0
+	for i := 0; i < len(asginfo); i++ {
+		size = size + len(asginfo[i].Instances)
+	}
+	return size
 }
 
 func (r *Replacer) swapInstance(clst *cluster) error {
@@ -282,7 +290,7 @@ func (r *Replacer) optimizeClusterSize(clst *cluster, num int) error {
 		if err != nil {
 			return xerrors.Errorf("Cannnot get Asg Info: %w", err)
 		}
-		size := len(asginfo.Instances)
+		size := asgSize(asginfo)
 		if size != num {
 			return xerrors.New("There are still pending instances")
 		}

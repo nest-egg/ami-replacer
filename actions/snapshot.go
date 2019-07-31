@@ -39,22 +39,35 @@ func (r *Replacer) deleteSnapshot(snapshotid string) (result *ec2.DeleteSnapshot
 	return output, nil
 }
 
-func (r *Replacer) searchUnusedSnapshot(ownerid string) (result *ec2.DescribeSnapshotsOutput, err error) {
+func (r *Replacer) searchSnapshot(ownerid string) (result []*ec2.Snapshot, err error) {
 
+	results := []*ec2.Snapshot{}
+	var nextToken *string
 	params := &ec2.DescribeSnapshotsInput{
 		OwnerIds: []*string{
 			aws.String(ownerid),
 		},
 	}
-	output, err := r.asg.Ec2Api.DescribeSnapshots(params)
-	if err != nil {
-		return nil, xerrors.Errorf("Failed to describe snapshots: %w", err)
+
+	for {
+		output, err := r.asg.Ec2Api.DescribeSnapshots(params)
+		if err != nil {
+			return nil, xerrors.Errorf("Failed to describe snapshots: %w", err)
+		}
+		results = append(results, output.Snapshots...)
+		nextToken = output.NextToken
+		if aws.StringValue(nextToken) == "" {
+			break
+		}
+		params.NextToken = nextToken
 	}
-	return output, nil
+	return results, nil
 }
 
-func (r *Replacer) volumeExists(snapshotid string) (result *ec2.DescribeVolumesOutput, err error) {
+func (r *Replacer) volumeExists(snapshotid string) (result []*ec2.Volume, err error) {
 
+	results := []*ec2.Volume{}
+	var nextToken *string
 	params := &ec2.DescribeVolumesInput{
 
 		Filters: []*ec2.Filter{{
@@ -63,11 +76,19 @@ func (r *Replacer) volumeExists(snapshotid string) (result *ec2.DescribeVolumesO
 				aws.String(snapshotid),
 			},
 		}}}
-	output, err := r.asg.Ec2Api.DescribeVolumes(params)
-	if err != nil {
-		return nil, xerrors.Errorf("Failed to describe volumes: %w", err)
+	for {
+		output, err := r.asg.Ec2Api.DescribeVolumes(params)
+		if err != nil {
+			return nil, xerrors.Errorf("Failed to describe volumes: %w", err)
+		}
+		results = append(results, output.Volumes...)
+		nextToken = output.NextToken
+		if aws.StringValue(nextToken) == "" {
+			break
+		}
+		params.NextToken = nextToken
 	}
-	return output, nil
+	return results, nil
 }
 
 func (r *Replacer) imageExists(snapshotid string) (result *ec2.DescribeImagesOutput, err error) {

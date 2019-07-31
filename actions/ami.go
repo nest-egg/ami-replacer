@@ -48,25 +48,36 @@ func (r *Replacer) Ami(id string) (string, error) {
 	return amiid, nil
 }
 
-func (r *Replacer) asgInfo(asgname string) (grp *autoscaling.Group, err error) {
+func (r *Replacer) asgInfo(asgname string) (grp []*autoscaling.Group, err error) {
+
+	results := []*autoscaling.Group{}
+	var nextToken *string
 
 	params := &autoscaling.DescribeAutoScalingGroupsInput{
 		AutoScalingGroupNames: []*string{
 			aws.String(asgname),
 		},
 	}
-	output, err := r.asg.AsgAPI.DescribeAutoScalingGroups(params)
-	if err != nil {
-		return nil, xerrors.Errorf("Failed to describe asg groups: %w", err)
+	for {
+		output, err := r.asg.AsgAPI.DescribeAutoScalingGroups(params)
+		if err != nil {
+			return nil, xerrors.Errorf("Failed to describe asg groups: %w", err)
+		}
+		results = append(results, output.AutoScalingGroups...)
+		nextToken = output.NextToken
+		if aws.StringValue(nextToken) == "" {
+			break
+		}
+		params.NextToken = nextToken
 	}
-	if len(output.AutoScalingGroups) == 0 {
+
+	if len(results) == 0 {
 		return nil, xerrors.New("Asg not found")
 	}
-	asgGroup := output.AutoScalingGroups[0]
-	if len(asgGroup.Instances) == 0 {
+	if len(results[0].Instances) == 0 {
 		return nil, xerrors.New("No instances found in asg")
 	}
-	return asgGroup, nil
+	return results, nil
 }
 
 func (r *Replacer) deregisterAMI(c *config.Config) (*ec2.DeregisterImageOutput, error) {

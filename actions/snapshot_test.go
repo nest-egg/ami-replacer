@@ -80,7 +80,7 @@ func TestSnapshot_DeleteSnapshot(t *testing.T) {
 	}
 }
 
-func TestSnapshot_SearchUnusedSnapshot(t *testing.T) {
+func TestSnapshot_SearchSnapshot(t *testing.T) {
 	region := "ap-northeast-1"
 	profile := "admin"
 	testCases := []struct {
@@ -105,7 +105,7 @@ func TestSnapshot_SearchUnusedSnapshot(t *testing.T) {
 				region,
 				profile,
 			)
-			output, err := mockreplacer.searchUnusedSnapshot(tc.ownerid)
+			output, err := mockreplacer.searchSnapshot(tc.ownerid)
 			_ = output
 			if err == nil && tc.shouldErr {
 				t.Errorf("should raise error: %v", err)
