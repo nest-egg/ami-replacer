@@ -42,3 +42,6 @@ Replace ECS cluster Instances with newest AMI.
 ```
 ami-replacer replace --image <image name>  --owner <owner> --asgname <asg name> --clustername <cluster name> -v --dry-run
 ```
+
+### License
+MIT
