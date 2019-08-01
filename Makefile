@@ -1,5 +1,5 @@
 PACKAGE   = ami-replacer
-VERSION  := v0.0.1
+VERSION  := v0.1
 DATE    ?= $(shell date +%FT%T%z)
 #REVISION := $(shell git rev-parse --short HEAD)
 PKGS     = $(or $(PKG),$(shell env GO111MODULE=on $(GO) list ./...))
@@ -7,6 +7,7 @@ TESTPKGS = $(shell env GO111MODULE=on $(GO) list -f '{{ if or .TestGoFiles .XTes
 BASE     = $(CURDIR)
 BIN      = $(CURDIR)/bin
 GO_FILES = find . -iname '*.go' -type f
+LDFALGS = -ldflags '-X $(PACKAGE)/cmd.Version=$(VERSION) -X $(PACKAGE)/cmd.BuildDate=$(DATE)'
 
 GO      = go
 GODOC   = godoc
@@ -23,7 +24,7 @@ export GO111MODULE=on
 all: fmt lint $(BIN) ; $(info $(M) building executable…) @ ## Build program binary
 	$Q $(GO) build \
 		-tags release \
-		-ldflags '-X $(PACKAGE)/cmd.Version=$(VERSION) -X $(PACKAGE)/cmd.BuildDate=$(DATE)' \
+		$(LDFALGS) \
 		-o $(BIN)/$(PACKAGE) main.go
 
 $(BIN):
@@ -63,3 +64,7 @@ fmt: ; $(info $(M) running gofmt…) @ ## Run gofmt on all source files
 .PHONY: lint
 lint: | $(GOLINT) ; $(info $(M) running golint…) @ ## Run golint
 	$Q $(GOLINT) -set_exit_status $(PKGS)
+
+.PHONY: install
+install:
+	go install $(LDFLAGS)
