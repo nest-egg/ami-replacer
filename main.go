@@ -105,21 +105,21 @@ func init() {
 	cmds = []cli.Command{
 		{
 			Name:    "rmi",
-			Aliases: []string{"delete", "d"},
+			Aliases: []string{"delete-images"},
 			Usage:   "delete AMIs",
 			Flags:   rmiFlags,
 			Action:  removeAMIs,
 		},
 		{
 			Name:    "rms",
-			Aliases: []string{"delete-snap", "ds"},
+			Aliases: []string{"remove-snapshots"},
 			Usage:   "remove unused Snapshots",
 			Flags:   rmsFlags,
 			Action:  removeSnapshots,
 		},
 		{
-			Name:    "asg",
-			Aliases: []string{"replace", "r"},
+			Name:    "rpl",
+			Aliases: []string{"replace"},
 			Usage:   "replace asg instance",
 			Flags:   rplFlags,
 			Action:  replaceInstances,
