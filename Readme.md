@@ -13,16 +13,30 @@ make install
 
 - `rmi` delete images before specified generations.
 - `rms` remove snapshots that is not reffered by any AMIs or volumes.
+- `rpl` replace ecs cluster instances with newest AMI.
 
 #### Options
 
-- `image` prefix of AMI.
-- `region` AWS region.
-- `owner` account ID of ami owner.
-- `profile` aws profile.
-- `asgname` asg name.
-- `clustername` ecs cluster name.
-- `dry-run` dry run flag.
+- `rmi`
+  - `image,i` prefix of AMI.
+  - `owner,o` account ID of ami owner.
+  - `dry-run,d` dry run flag.
+  - `gen,g` max generations to retain.
+  - `verbose,v` enable debug output.
+
+- `rms`
+  - `owner,o` account ID of ami owner.
+  - `dry-run,d` dry run flag.
+  - `verbose,v` enable debug output.
+
+- `rpl`
+  - `asgname` asg name.
+  - `clustername` ecs cluster name.
+  - `image,i` prefix of AMI.
+  - `owner,o` account ID of ami owner.
+  - `dry-run,d` dry run flag.
+  - `verbose,v` enable debug output.
+
 
 #### Example
 
