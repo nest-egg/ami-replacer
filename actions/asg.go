@@ -13,21 +13,21 @@ import (
 	"golang.org/x/xerrors"
 )
 
-func (r *Replacer) replaceUnusedInstance(clst *cluster) (*ec2.StopInstancesOutput, error) {
+func (r *Replacer) replaceUnusedInstance(clst *cluster) (*ec2.TerminateInstancesOutput, error) {
 
 	instances := clst.unusedInstances
 	asgname := clst.asg.name
 	num := clst.asg.size
 
-	log.Logger.Infof("Stop instance %v", instances)
+	log.Logger.Infof("Terminate instance %v", instances)
 
-	params := &ec2.StopInstancesInput{
+	params := &ec2.TerminateInstancesInput{
 		DryRun:      aws.Bool(dryrun),
 		InstanceIds: aws.StringSlice(instances),
 	}
-	result, err := r.asg.Ec2Api.StopInstances(params)
+	result, err := r.asg.Ec2Api.TerminateInstances(params)
 	if err != nil {
-		return nil, xerrors.Errorf("Failed to stop instances: %w", err)
+		return nil, xerrors.Errorf("Failed to terminate instances: %w", err)
 	}
 
 	describe := func() error {
